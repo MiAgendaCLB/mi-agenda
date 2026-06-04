@@ -1,422 +1,240 @@
-/* ==========================================================================
-   MODULO-CITAS.JS - ENGINE DE INTEGRACIÓN, FILTROS Y NAVEGACIÓN SEMANAL V8.6
-   ========================================================================== */
-
-if (!window.AppState) window.AppState = {};
-if (!window.AppState.citas) window.AppState.citas = JSON.parse(localStorage.getItem('agenda_citas')) || [];
-if (!window.AppState.filtroHome) window.AppState.filtroHome = 'todos'; // Filtro activo por defecto
-if (!window.AppState.fechaBaseSemana) window.AppState.fechaBaseSemana = new Date();
-
-// Mock de trámites para la proactividad del sistema
-if (!window.AppState.tramites) {
-  window.AppState.tramites = [
-    { id: 'tr_1', nombre: 'Supersalud', diasActivo: 30, estado: 'pendiente' }
-  ];
+// ==========================================
+// 1. ESTADO GLOBAL DE LA APLICACIÓN
+// ==========================================
+if (!window.AppState) {
+  window.AppState = {
+    theme: 'light',
+    currentSection: 'home',
+    fechaBaseSemana: new Date(),
+    filtroHome: 'todos',
+    filtroCitas: 'todos',
+    filtroTramites: 'todos'
+  };
 }
 
-let especialidadesMaestras = JSON.parse(localStorage.getItem('maestro_especialidades')) || ['Cardiología', 'Neurología', 'Psicología', 'Medicina General'];
-let institucionesMaestras = JSON.parse(localStorage.getItem('maestro_instituciones')) || ['IPS SURA', 'Oportunidad de Vida', 'Neurólogos de Occidente'];
+// Datos semilla en memoria (Si tienes localStorage, se cargarán de ahí)
+window.AgendaData = {
+  citas: JSON.parse(localStorage.getItem('agenda_citas')) || [
+    { id: 1, persona: 'Paco', tipo: 'medica', especialidad: 'Cardiología', institucion: 'Sura', fecha: '2026-06-05', hora: '09:00 AM', lugar: 'Consultorio 402', copago: 15000, transporte: 8000 },
+    { id: 2, persona: 'Padre', tipo: 'tramite', subtipo: 'reclamo', institucion: 'Supersalud', fecha: '2026-06-06', hora: '11:30 AM', lugar: 'Plataforma Virtual', copago: 0, transporte: 0, estado: 'activo' }
+  ],
+  maestros: JSON.parse(localStorage.getItem('agenda_maestros')) || {
+    especialidades: ['Cardiología', 'Medicina General', 'Odontología'],
+    instituciones: ['Sura', 'Sanitas', 'Supersalud', 'Clínica Valle del Lili']
+  }
+};
 
-document.addEventListener('DOMContentLoaded', () => {
-  inicializarSelectoresCitas();
-  renderCitas();
-  actualizarResumenSemanalCitas();
+// ==========================================
+// 2. INICIALIZACIÓN AUTOMÁTICA
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+  inyectarCamposDinamicosAlModal();
+  configurarEventosTarjetas();
   renderPantallaHoyCompleta();
 });
 
-function inicializarSelectoresCitas() {
-  const hh = document.getElementById('cita-hora-hh');
-  if(hh) hh.innerHTML = Array.from({length: 12}, (_, i) => `<option value="${i+1}">${String(i+1).padStart(2,'0')}</option>`).join('');
-  
-  const mm = document.getElementById('cita-hora-mm');
-  if(mm) mm.innerHTML = ['00', '15', '30', '45'].map(m => `<option value="${m}">${m}</option>`).join('');
-  
-  actualizarSelectsMedicos();
-}
+// ==========================================
+// 3. CONTROL DE NAVEGACIÓN INTELEGENTE Y FILTROS
+// ==========================================
 
-function actualizarSelectsMedicos() {
-  const selEsp = document.getElementById('cita-especialidad');
-  const selIns = document.getElementById('cita-institucion');
-  // Se usa un estilo limpio y compacto para la opción de añadir
-  if(selEsp) selEsp.innerHTML = especialidadesMaestras.map(e => `<option value="${e}">${e}</option>`).join('') + `<option value="NUEVO" style="font-weight:bold; color:var(--accent);">➕ Crear nueva...</option>`;
-  if(selIns) selIns.innerHTML = institucionesMaestras.map(i => `<option value="${i}">${i}</option>`).join('') + `<option value="NUEVO" style="font-weight:bold; color:var(--accent);">➕ Crear nueva...</option>`;
-}
+// Modifica visualmente los selectores de los módulos y simula los clics del menú original
+function irAlModuloYFiltrar(modulo, criterioFiltro) {
+  // 1. Cambia de pantalla usando la función de tu index
+  if (typeof switchSection === 'function') {
+    switchSection(modulo);
+  } else {
+    // Alternativa si switchSection cambia de nombre
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById('sec-' + modulo);
+    if(target) target.classList.add('active');
+  }
 
-function verificarNuevoDatoMedico(selectElement, tipo) {
-  if (selectElement.value === 'NUEVO') {
-    const popup = document.getElementById('popup-auxiliar');
-    const titulo = document.getElementById('aux-titulo');
-    const input = document.getElementById('aux-input');
-    const btn = document.getElementById('aux-btn-confirmar');
-    
-    titulo.textContent = tipo === 'especialidad' ? 'Nueva Especialidad' : 'Nueva IPS';
-    input.value = '';
-    
-    // Aplicar tamaño adecuado y compacto al input y contenedor auxiliar
-    input.style.fontSize = "14px";
-    input.style.padding = "6px 10px";
-    
-    popup.classList.add('open');
-    
-    btn.onclick = () => {
-      const valor = input.value.trim();
-      if(valor) {
-        if(tipo === 'especialidad') {
-          especialidadesMaestras.push(valor);
-          localStorage.setItem('maestro_especialidades', JSON.stringify(especialidadesMaestras));
-        } else {
-          institucionesMaestras.push(valor);
-          localStorage.setItem('maestro_instituciones', JSON.stringify(institucionesMaestras));
-        }
-        actualizarSelectsMedicos();
-        selectElement.value = valor;
-        popup.classList.remove('open');
-        showToast(`${tipo === 'especialidad' ? 'Especialidad' : 'IPS'} añadida.`);
-      }
-    };
+  // 2. Configurar el filtro específico según la tarjeta presionada
+  if (modulo === 'citas') {
+    AppState.filtroCitas = criterioFiltro;
+    const selectFiltro = document.getElementById('filtro-citas-select');
+    if (selectFiltro) selectFiltro.value = criterioFiltro;
+    renderListadoCitas();
+  } 
+  else if (modulo === 'documentos') {
+    AppState.filtroTramites = criterioFiltro;
+    const selectFiltro = document.getElementById('filtro-tramites-select');
+    if (selectFiltro) selectFiltro.value = criterioFiltro;
+    renderListadoTramites();
   }
 }
 
-// ════ MODAL: ABRIR EN MODO CREACIÓN O EDICIÓN COMPLETA ════
-function abrirModalCita(idCita = null) {
+// Vincula las tarjetas de totales para que respondan al hacer clic
+function configurarEventosTarjetas() {
+  const mapeo = [
+    { id: 'kpi-box-por-tomar', mod: 'citas', filtro: 'por-tomar' },
+    { id: 'kpi-box-tramites', mod: 'documentos', filtro: 'activos' },
+    { id: 'kpi-box-hoy', mod: 'citas', filtro: 'hoy' }
+  ];
+
+  mapeo.forEach(item => {
+    const tarjeta = document.getElementById(item.id);
+    if (tarjeta) {
+      tarjeta.style.cursor = 'pointer';
+      tarjeta.onclick = () => irAlModuloYFiltrar(item.mod, item.filtro);
+    }
+  });
+}
+
+// ==========================================
+// 4. LOGICA DEL FORMULARIO DINÁMICO (CITAS vs PQRS)
+// ==========================================
+
+function inyectarCamposDinamicosAlModal() {
   const form = document.getElementById('form-cita');
-  if(!form) return;
-  form.reset();
-  inicializarSelectoresCitas();
+  if (!form) return;
 
-  const titleEl = document.getElementById('cita-modal-title');
-  const btnGuardar = document.getElementById('btn-guardar-cita-modal');
-  const btnEliminar = document.getElementById('btn-eliminar-cita-modal');
-  const idInput = document.getElementById('cita-id-edicion');
+  // Insertar selector de tipo justo al inicio del formulario si no existe
+  if (!document.getElementById('cita-tipo')) {
+    const divTipo = document.createElement('div');
+    divTipo.className = 'form-group';
+    divTipo.innerHTML = `
+      <label>Tipo de Registro</label>
+      <select id="cita-tipo" style="width:100%; padding:9px; border-radius:8px;">
+        <option value="medica">🏥 Cita Médica</option>
+        <option value="tramite">📄 Trámite / Requerimiento (PQRS)</option>
+      </select>
+    `;
+    form.insertBefore(divTipo, form.firstChild);
 
-  if (idCita) {
-    const cita = window.AppState.citas.find(c => c.id === idCita);
-    if (!cita) return;
+    // Insertar el grupo del subtipo PQRS justo debajo
+    const divSubtipo = document.createElement('div');
+    divSubtipo.className = 'form-group';
+    divSubtipo.id = 'grupo-subtipo-tramite';
+    divSubtipo.style.display = 'none';
+    divSubtipo.innerHTML = `
+      <label>Clasificación del Trámite (PQRS)</label>
+      <select id="cita-subtipo-tramite" style="width:100%; padding:9px; border-radius:8px;">
+        <option value="peticion">🙋‍♂️ Petición</option>
+        <option value="queja">🤬 Queja</option>
+        <option value="reclamo">⚠️ Reclamo</option>
+        <option value="sugerencia">💡 Sugerencia</option>
+      </select>
+    `;
+    form.insertBefore(divSubtipo, form.children[1]);
 
-    idInput.value = cita.id;
-    if(titleEl) titleEl.textContent = "Modificar Cita Médica";
-    if(btnGuardar) btnGuardar.textContent = "Guardar Cambios";
-    if(btnEliminar) btnEliminar.style.display = "block";
-
-    document.getElementById('cita-persona').value = cita.paciente;
-    document.getElementById('cita-especialidad').value = cita.especialidad;
-    document.getElementById('cita-institucion').value = cita.institucion;
-    document.getElementById('cita-fecha').value = cita.fecha;
-    document.getElementById('cita-lugar').value = cita.lugar;
-    document.getElementById('cita-copago').value = cita.copago;
-    document.getElementById('cita-transporte').value = cita.transporte;
-
-    const parts = cita.hora.split(' ');
-    if(parts[0]) {
-      const timeParts = parts[0].split(':');
-      document.getElementById('cita-hora-hh').value = parseInt(timeParts[0]);
-      document.getElementById('cita-hora-mm').value = timeParts[1];
-    }
-    if(parts[1]) document.getElementById('cita-hora-ampm').value = parts[1];
-
-  } else {
-    idInput.value = "";
-    if(titleEl) titleEl.textContent = "Agendar Nueva Cita Médica";
-    if(btnGuardar) btnGuardar.textContent = "Agendar e Indexar Caja";
-    if(btnEliminar) btnEliminar.style.display = "none";
+    // Escuchar cambios para ocultar o mostrar campos correspondientes
+    document.getElementById('cita-tipo').addEventListener('change', (e) => {
+      const esTramite = e.target.value === 'tramite';
+      document.getElementById('grupo-subtipo-tramite').style.display = esTramite ? 'block' : 'none';
+      
+      // Ocultar select de especialidad si es un trámite administrativo
+      const selectEspecialidad = document.getElementById('cita-especialidad');
+      if (selectEspecialidad) {
+        selectEspecialidad.closest('.form-group').style.display = esTramite ? 'none' : 'block';
+      }
+    });
   }
 
-  openModal('modal-nueva-cita');
+  // Llenar selectores normales
+  actualizarSelectoresMaestros();
 }
 
-function ejecutarCrearCitaReal() {
-  const idEdicion = document.getElementById('cita-id-edicion').value;
-  const paciente = document.getElementById('cita-persona').value;
-  const chocolateEsp = document.getElementById('cita-especialidad').value;
-  const chocolateIns = document.getElementById('cita-institucion').value;
-  const fecha = document.getElementById('cita-fecha').value;
-  
-  const hh = document.getElementById('cita-hora-hh').value;
-  const mm = document.getElementById('cita-hora-mm').value;
-  const ampm = document.getElementById('cita-hora-ampm').value;
-  const horaConstruida = `${hh}:${mm} ${ampm}`;
+// ==========================================
+// 5. FILTRADO Y NAVEGADOR SEMANAL ESTRICTO
+// ==========================================
 
-  const lugar = document.getElementById('cita-lugar').value.trim() || 'No especificado';
-  const copago = parseFloat(document.getElementById('cita-copago').value) || 0;
-  const transporte = parseFloat(document.getElementById('cita-transporte').value) || 0;
-
-  if(!fecha) { alert('La fecha es obligatoria.'); return; }
-
-  if (idEdicion) {
-    const citaIndex = window.AppState.citas.findIndex(c => c.id === idEdicion);
-    if (citaIndex !== -1) {
-      window.AppState.citas[citaIndex] = {
-        ...window.AppState.citas[citaIndex],
-        paciente, especialidad: chocolateEsp, institucion: chocolateIns, fecha, hora: horaConstruida, lugar, copago, transporte
-      };
-      showToast('Cita modificada con éxito.');
-    }
-  } else {
-    const nuevaCita = {
-      id: 'cita_' + Date.now(),
-      paciente, especialidad: chocolateEsp, institucion: chocolateIns, fecha, hora: horaConstruida, lugar, copago, transporte, estado: 'portomar'
-    };
-    window.AppState.citas.push(nuevaCita);
-    showToast('Cita guardada correctamente.');
-  }
-
-  localStorage.setItem('agenda_citas', JSON.stringify(window.AppState.citas));
-  closeModal('modal-nueva-cita');
-  renderCitas();
-  actualizarResumenSemanalCitas();
-  renderPantallaHoyCompleta();
-}
-
-function ejecutarEliminacionDesdeModal() {
-  const idEdicion = document.getElementById('cita-id-edicion').value;
-  if(idEdicion && confirm('¿Deseas eliminar esta cita de forma permanente?')) {
-    window.AppState.citas = window.AppState.citas.filter(x => x.id !== idEdicion);
-    localStorage.setItem('agenda_citas', JSON.stringify(window.AppState.citas));
-    closeModal('modal-nueva-cita');
-    renderCitas();
-    actualizarResumenSemanalCitas();
-    renderPantallaHoyCompleta();
-    showToast('Cita eliminada.');
-  }
-}
-
-// ════ INTERMITENCIA DE FILTROS DESDE LOS TOTALES / KPIS ════
-function setHomeFiltro(tipoFiltro) {
-  // Si das clic al filtro que ya está activo, se limpia y regresa a "todos"
-  if (window.AppState.filtroHome === tipoFiltro) {
-    window.AppState.filtroHome = 'todos';
-  } else {
-    window.AppState.filtroHome = tipoFiltro;
-  }
-  renderPantallaHoyCompleta();
-  showToast(`Filtrando vista por: ${window.AppState.filtroHome.toUpperCase()}`);
-}
-
-/* ==========================================================================
-   ENGINE: RENDERIZADO DE LA PANTALLA HOY (PANTALLA CON MEMORIA DE UBICACIÓN)
-   ========================================================================== */
 function navegarSemana(direccion) {
-  const fecha = new Date(window.AppState.fechaBaseSemana);
-  fecha.setDate(fecha.getDate() + (direccion * 7));
-  window.AppState.fechaBaseSemana = fecha;
+  AppState.fechaBaseSemana.setDate(AppState.fechaBaseSemana.getDate() + (direccion * 7));
   renderPantallaHoyCompleta();
-}
-
-function obtenerLimitesSemanales(fechaBase) {
-  const copia = new Date(fechaBase);
-  const diaSemana = copia.getDay();
-  const diferenciaLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
-  
-  const lunes = new Date(copia);
-  lunes.setDate(copia.getDate() + diferenciaLunes);
-  lunes.setHours(0,0,0,0);
-  
-  const domingo = new Date(lunes);
-  domingo.setDate(lunes.getDate() + 6);
-  domingo.setHours(23,59,59,999);
-  
-  return { lunes, domingo };
 }
 
 function renderPantallaHoyCompleta() {
-  const hoyString = new Date().toISOString().split('T')[0];
-  const base = window.AppState.fechaBaseSemana || new Date();
-  const { lunes, domingo } = obtenerLimitesSemanales(base);
-
-  // 1. Calcular en qué semana estamos parados con precisión real
-  const { lunes: lunesActualReal, domingo: domingoActualReal } = obtenerLimitesSemanales(new Date());
+  actualizarTotalesKPI();
   
-  let stringUbicacion = "Semana Actual";
-  if (lunes.getTime() > domingoActualReal.getTime()) {
-    const semanasAdelante = Math.round((lunes - lunesActualReal) / (7 * 24 * 60 * 60 * 1000));
-    stringUbicacion = semanasAdelante === 1 ? "Próxima Semana" : `En +${semanasAdelante} semanas`;
-  } else if (domingo.getTime() < lunesActualReal.getTime()) {
-    const semanasAtras = Math.round((lunesActualReal - lunes) / (7 * 24 * 60 * 60 * 1000));
-    stringUbicacion = semanasAtras === 1 ? "Semana Anterior" : `Hace ${semanasAtras} semanas`;
-  }
-
-  const labelRango = document.getElementById('weekly-range-label');
-  if(labelRango) {
-    labelRango.innerHTML = `<span style="background:var(--blue-light); color:var(--blue); padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; margin-right:6px;">${stringUbicacion}</span> ` +
-                           `${lunes.toLocaleDateString('es-ES', {day:'numeric', month:'short'})} - ${domingo.toLocaleDateString('es-ES', {day:'numeric', month:'short'})}`;
-  }
-
-  // 2. Banner Proactivo Dinámico Inteligente
-  const bannerContainer = document.getElementById('home-proactive-banner');
-  if(bannerContainer) {
-    const tramiteCritico = window.AppState.tramites.find(t => t.nombre === 'Supersalud' && t.diasActivo >= 30);
-    const citasHoyCount = window.AppState.citas.filter(c => c.fecha === hoyString).length;
-
-    if (tramiteCritico) {
-      bannerContainer.innerHTML = `
-        <div class="card error-banner" style="background: #fff3cd; border-left: 5px solid #ffc107; padding: 14px; margin-bottom: 20px; border-radius: 6px; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <strong style="color:#856404; font-size:14px;">⚠️ El sistema proactivo informa:</strong>
-            <div style="color:#664d03; font-size:13px; margin-top:2px;">El trámite con <b>Supersalud</b> lleva ${tramiteCritico.diasActivo} días. ¿Quieres registrar seguimiento?</div>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="switchSection('documentos')" style="background:#b45309; border:none; font-size:12px; padding:6px 12px;">Registrar Seguimiento</button>
-        </div>`;
-    } else if (citasHoyCount === 0) {
-      const futuras = window.AppState.citas.filter(c => c.fecha >= hoyString).sort((a,b)=>a.fecha.localeCompare(b.fecha));
-      let msgProx = "Todo está en orden. No registras eventos pendientes.";
-      if(futuras.length > 0) {
-        const opciones = { weekday: 'long', day: 'numeric', month: 'short' };
-        const fObj = new Date(futuras[0].fecha + 'T00:00:00');
-        msgProx = `Todo está en orden. La próxima cita es el ${fObj.toLocaleDateString('es-ES', opciones)}.`;
-      }
-      bannerContainer.innerHTML = `
-        <div class="card success-banner" style="background: #e8f5e9; border-left: 5px solid #2d6a4f; padding: 12px; margin-bottom: 20px; border-radius: 6px; display:flex; align-items:center; gap:10px;">
-          <span style="font-size:18px;">🌿</span>
-          <div style="color:#1b5e20; font-size:13.5px; font-weight:500;">${msgProx}</div>
-        </div>`;
-    } else {
-      bannerContainer.innerHTML = "";
-    }
-  }
-
-  // 3. Totales / Tarjetas de KPI Interactivos con sombras dinámicas de Selección
-  const totalCitasPorTomar = window.AppState.citas.filter(c => c.estado === 'portomar').length;
-  const totalTramitesActivos = window.AppState.tramites.filter(t => t.estado === 'pendiente').length;
-  const totalCitasHoy = window.AppState.citas.filter(c => c.fecha === hoyString).length;
-  
-  let totalSaldoBancos = 0;
-  if(window.AppState.finanzas && window.AppState.finanzas.cuentas) {
-    window.AppState.finanzas.cuentas.forEach(cu => totalSaldoBancos += cu.saldo);
-  }
-  let egresosMes = 0;
-  if(window.AppState.finanzas && window.AppState.finanzas.transacciones) {
-    const mAct = new Date().toISOString().substring(0, 7);
-    window.AppState.finanzas.transacciones.forEach(tx => { if(tx.tipo==='egreso' && tx.fecha && tx.fecha.startsWith(mAct)) egresosMes += tx.monto; });
-  }
-
-  // Actualizar e inyectar interactividad con cursor pointer y sombreado si el filtro está seleccionado
-  const f = window.AppState.filtroHome;
-  const renderBox = (id, val, label, filterKey, color) => {
-    const box = document.getElementById(id);
-    if(box) {
-      box.textContent = val;
-      const parent = box.parentElement;
-      parent.style.cursor = 'pointer';
-      parent.onclick = () => setHomeFiltro(filterKey);
-      // Efecto sombreado / Active border para denotar que está filtrando
-      if (f === filterKey) {
-        parent.style.background = 'var(--accent-xlight)';
-        parent.style.border = `2px solid ${color}`;
-      } else {
-        parent.style.background = 'var(--surface)';
-        parent.style.border = '1px solid var(--border)';
-      }
-    }
-  };
-
-  renderBox('stat-citas-por-tomar', totalCitasPorTomar, 'Citas por tomar', 'por-tomar', '#2d6a4f');
-  renderBox('stat-tramites-activos', totalTramitesActivos, 'Trámites activos', 'tramites', '#1d3557');
-  renderBox('stat-saldo-cuentas', '$' + totalSaldoBancos.toLocaleString(), 'Saldo en cuentas', 'saldo', '#b45309');
-  renderBox('stat-citas-hoy', totalCitasHoy, 'Citas hoy', 'citas-hoy', '#0055ff');
-  renderBox('stat-egresos-mes', '$' + egresosMes.toLocaleString(), 'Egresos del mes', 'egresos', '#c44536');
-
-  // 4. Renderizar Filas de Días aplicando el Criterio de Búsqueda/Filtro Activo
   const contenedorAgenda = document.getElementById('home-weekly-agenda');
-  if(!contenedorAgenda) return;
+  const etiquetaRango = document.getElementById('weekly-range-label');
+  if (!contenedorAgenda) return;
 
-  let htmlSemanal = "";
-  const diasNombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  // Calcular límites de la semana (Lunes a Domingo)
+  const fecha = new Date(AppState.fechaBaseSemana);
+  const dema = fecha.getDay();
+  const diff = fecha.getDate() - dema + (dema === 0 ? -6 : 1);
+  const lunes = new Date(fecha.setDate(diff));
+  lunes.setHours(0,0,0,0);
 
-  for (let i = 0; i < 7; i++) {
-    const diaIterado = new Date(lunes);
-    diaIterado.setDate(lunes.getDate() + i);
-    const diaIso = diaIterado.toISOString().split('T')[0];
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate() + 6);
+  domingo.setHours(23,59,59,999);
 
-    // Obtener citas originales de este día
-    let citasDelDia = window.AppState.citas.filter(c => c.fecha === diaIso);
-
-    // FILTRADO DINÁMICO SEGÚN LA SELECCIÓN DEL USUARIO
-    if (f === 'por-tomar') {
-      citasDelDia = citasDelDia.filter(c => c.estado === 'portomar');
-    } else if (f === 'citas-hoy') {
-      citasDelDia = citasDelDia.filter(c => c.fecha === hoyString);
-    } else if (f === 'tramites') {
-      // Si el filtro es trámites, no mostramos citas ordinarias a menos que correspondan a una gestión especial
-      citasDelDia = citasDelDia.filter(c => c.especialidad.toLowerCase().includes('trámite') || c.institucion.toLowerCase().includes('supersalud'));
-    } else if (f === 'saldo' || f === 'egresos') {
-      // Filtro ilustrativo contable: resalta citas que generaron copagos/costos
-      citasDelDia = citasDelDia.filter(c => (c.copago + c.transporte) > 0);
-    }
-
-    const esHoyReal = diaIso === hoyString;
-    const estiloFondo = esHoyReal ? 'background: #f8fafc; border-left: 4px solid var(--accent); box-shadow: inset 0 0 4px rgba(0,0,0,0.02);' : 'background: var(--surface);';
-
-    // Ocultar filas de días vacíos sólo si hay un filtro de tarjeta riguroso corriendo
-    if (citasDelDia.length === 0 && f !== 'todos') {
-      continue; // Salta el día para compactar la búsqueda de lo que habla esa tarjeta
-    }
-
-    htmlSemanal += `
-      <div class="card day-row" style="padding: 12px; margin-bottom: 4px; ${estiloFondo}">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-          <strong style="font-size: 12.5px; text-transform: uppercase; color: var(--text2); font-weight:600;">${diasNombres[i]} (${diaIterado.getDate()})</strong>
-          ${esHoyReal ? `<span style="font-size: 9px; background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;">HOY</span>` : ''}
-        </div>
-        <div class="day-events-container" style="display:flex; flex-direction:column; gap:6px;">
-          ${citasDelDia.map(ci => `
-            <div style="background: var(--surface2); padding: 8px; border-radius: 6px; border-left: 3px solid ${ci.paciente==='Paco'?'#0055ff':ci.paciente==='Padre'?'#00aa00':'#ffcc00'}; cursor:pointer; transition: transform 0.1s;" 
-                 onclick="abrirModalCita('${ci.id}')" 
-                 onmouseover="this.style.transform='scale(1.01)'" 
-                 onmouseout="this.style.transform='scale(1)'">
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
-                <span>⏰ <b>${ci.hora}</b> - ${ci.especialidad} (<b style="color:var(--text);">${ci.paciente}</b>)</span>
-                <span style="font-size:11px; color:var(--text3); background:var(--border); padding:2px 6px; border-radius:4px;">${ci.institucion}</span>
-              </div>
-              ${(ci.copago + ci.transporte) > 0 ? `<div style="font-size:11px; color:var(--amber); margin-top:2px;">💰 Costos asignados: $${(ci.copago + ci.transporte).toLocaleString()}</div>` : ''}
-            </div>
-          `).join('') || `<div style="font-size:12px; color:var(--text3); font-style:italic; padding-left:4px;">No hay compromisos.</div>`}
-        </div>
-      </div>
-    `;
+  // Mostrar rango en interfaz
+  if (etiquetaRango) {
+    const opciones = { day: 'numeric', month: 'short' };
+    etiquetaRango.textContent = `${lunes.toLocaleDateString('es-ES', opciones)} - ${domingo.toLocaleDateString('es-ES', opciones)}`;
   }
 
-  if(htmlSemanal === "") {
-    htmlSemanal = `<div style="text-align:center; padding:30px; color:var(--text3); font-style:italic; background:var(--surface); border-radius:6px;">Ninguna cita coincide con el filtro de esta tarjeta durante esta semana.</div>`;
-  }
+  // Filtrar estrictamente los datos de esta semana
+  const eventosSemana = AgendaData.citas.filter(item => {
+    const f = new Date(item.fecha + 'T00:00:00');
+    return f >= lunes && f <= domingo;
+  });
 
-  contenedorAgenda.innerHTML = htmlSemanal;
-}
-
-function renderCitas() {
-  const container = document.getElementById('citas-list');
-  if (!container) return;
-  if (window.AppState.citas.length === 0) {
-    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text3);">No hay citas registradas.</div>`;
+  // Renderizar bloques visuales de la semana
+  if (eventosSemana.length === 0) {
+    contenedorAgenda.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text2); font-size:14px;">No hay citas ni trámites programados para esta semana.</div>`;
     return;
   }
-  const sorted = [...window.AppState.citas].sort((a,b) => a.fecha.localeCompare(b.fecha));
-  container.innerHTML = sorted.map(c => `
-    <div class="card card-highlight" style="cursor:pointer; border-left-color: ${c.paciente==='Paco'?'#0055ff':c.paciente==='Padre'?'#00aa00':'#ffcc00'}" onclick="abrirModalCita('${c.id}')">
-      <div style="display:flex; justify-content:space-between; align-items:start;">
-        <div>
-          <span style="font-family:'Fraunces',serif; font-size:16px; font-weight:700;">${c.specialidad || c.especialidad}</span> · <b>${c.paciente}</b>
-          <div style="font-size:12px; color:var(--text2); margin-top:4px;">🏥 ${c.institucion} | 📍 ${c.lugar}</div>
-          <div style="font-size:13px; font-weight:600; color:var(--accent); margin-top:4px;">📅 ${c.fecha} ⏰ ${c.hora}</div>
+
+  // Ordenar cronológicamente
+  eventosSemana.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+
+  contenedorAgenda.innerHTML = eventosSemana.map(item => `
+    <div class="card" style="border-left: 4px solid ${item.tipo === 'tramite' ? 'var(--blue)' : 'var(--accent)'}; margin-bottom: 8px;">
+      <div style="display:flex; justify-content:between; align-items:start;">
+        <div style="flex:1;">
+          <span style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text2);">
+            ${item.tipo === 'tramite' ? `📄 TRÁMITE (${item.subtipo.toUpperCase()})` : '🏥 CITA MÉDICA'}
+          </span>
+          <h4 style="margin:2px 0; font-family:'Fraunces', serif;">${item.tipo === 'tramite' ? item.institucion : item.especialidad}</h4>
+          <p style="font-size:13px; color:var(--text2);">👤 Paciente: ${item.persona} | 📍 ${item.lugar}</p>
         </div>
-        <span class="chip ${c.estado==='tomada'?'chip-done':'chip-portomar'}">${c.estado==='tomada'?'Asistió':'Pendiente'}</span>
+        <div style="text-align:right;">
+          <span style="background:var(--bg); padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">⏱️ ${item.hora}</span>
+          <div style="font-size:11px; color:var(--text3); margin-top:4px;">${item.fecha}</div>
+        </div>
       </div>
     </div>
   `).join('');
 }
 
-function actualizarResumenSemanalCitas() {
-  ['Paco', 'Padre', 'Esposa'].forEach(p => {
-    const el = document.getElementById('citas-' + p.toLowerCase());
-    if(el) {
-      const prox = window.AppState.citas.filter(c => c.paciente === p && c.estado === 'portomar').sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
-      el.textContent = prox ? `${prox.fecha} - ${prox.especialidad}` : 'Sin citas pendientes';
-    }
-  });
+// ==========================================
+// 6. FUNCIONES AUXILIARES DE CÁLCULO
+// ==========================================
+
+function actualizarTotalesKPI() {
+  const hoyStr = new Date().toISOString().split('T')[0];
+  
+  const porTomar = AgendaData.citas.filter(c => c.tipo === 'medica' && c.fecha >= hoyStr).length;
+  const tramitesActivos = AgendaData.citas.filter(c => c.tipo === 'tramite').length; // Cuenta PQRS globales
+  const citasHoy = AgendaData.citas.filter(c => c.fecha === hoyStr).length;
+
+  const boxPorTomar = document.getElementById('stat-citas-por-tomar');
+  const boxTramites = document.getElementById('stat-tramites-activos');
+  const boxHoy = document.getElementById('stat-citas-hoy');
+
+  if(boxPorTomar) boxPorTomar.textContent = porTomar;
+  if(boxTramites) boxTramites.textContent = tramitesActivos;
+  if(boxHoy) boxHoy.textContent = citasHoy;
 }
 
-// Vinculación global de funciones al objeto window
-window.navegarSemana = navegarSemana;
-window.renderPantallaHoyCompleta = renderPantallaHoyCompleta;
-window.abrirModalCita = abrirModalCita;
-window.ejecutarEliminacionDesdeModal = ejecutarEliminacionDesdeModal;
-window.setHomeFiltro = setHomeFiltro;
+function actualizarSelectoresMaestros() {
+  const selEsp = document.getElementById('cita-especialidad');
+  const selIns = document.getElementById('cita-institucion');
+
+  if(selEsp) {
+    selEsp.innerHTML = AgendaData.maestros.especialidades.map(e => `<option value="${e}">${e}</option>`).join('') + '<option value="NUEVO">➕ Crear nueva...</option>';
+  }
+  if(selIns) {
+    selIns.innerHTML = AgendaData.maestros.instituciones.map(i => `<option value="${i}">${i}</option>`).join('') + '<option value="NUEVO">➕ Crear nueva...</option>';
+  }
+}
+
+// Funciones vacías por seguridad para evitar errores de carga en las pestañas secundarias
+function renderListadoCitas() { console.log("Filtrando historial de citas a:", AppState.filtroCitas); }
+function renderListadoTramites() { console.log("Filtrando trámites PQRS a:", AppState.filtroTramites); }
+function abrirModalCita() { if(typeof openModal === 'function') openModal('modal-nueva-cita'); }
