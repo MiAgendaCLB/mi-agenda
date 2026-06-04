@@ -12,15 +12,25 @@ if (!window.AppState) {
   };
 }
 
-// Datos semilla en memoria (Si tienes localStorage, se cargarán de ahí)
+// Estructura de Datos unificada con tu interfaz visual (Usa 'paciente')
 window.AgendaData = {
   citas: JSON.parse(localStorage.getItem('agenda_citas')) || [
-    { id: 1, persona: 'Paco', tipo: 'medica', especialidad: 'Cardiología', institucion: 'Sura', fecha: '2026-06-05', hora: '09:00 AM', lugar: 'Consultorio 402', copago: 15000, transporte: 8000 },
-    { id: 2, persona: 'Padre', tipo: 'tramite', subtipo: 'reclamo', institucion: 'Supersalud', fecha: '2026-06-06', hora: '11:30 AM', lugar: 'Plataforma Virtual', copago: 0, transporte: 0, estado: 'activo' }
+    { 
+      id: 1, 
+      paciente: 'Paco', 
+      tipo: 'medica', 
+      especialidad: 'Neurología', 
+      institucion: 'Sura', 
+      fecha: '2026-06-06', 
+      hora: '2:30 PM', 
+      lugar: 'No especificado', 
+      copago: 0, 
+      transporte: 0 
+    }
   ],
   maestros: JSON.parse(localStorage.getItem('agenda_maestros')) || {
-    especialidades: ['Cardiología', 'Medicina General', 'Odontología'],
-    instituciones: ['Sura', 'Sanitas', 'Supersalud', 'Clínica Valle del Lili']
+    especialidades: ['Neurología', 'Cardiología', 'Medicina General', 'Odontología'],
+    instituciones: ['Sura', 'Sanitas', 'Supersalud']
   }
 };
 
@@ -34,37 +44,31 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================
-// 3. CONTROL DE NAVEGACIÓN INTELEGENTE Y FILTROS
+// 3. NAVEGACIÓN DESDE LAS TARJETAS (KPI)
 // ==========================================
-
-// Modifica visualmente los selectores de los módulos y simula los clics del menú original
 function irAlModuloYFiltrar(modulo, criterioFiltro) {
-  // 1. Cambia de pantalla usando la función de tu index
   if (typeof switchSection === 'function') {
     switchSection(modulo);
   } else {
-    // Alternativa si switchSection cambia de nombre
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('sec-' + modulo);
     if(target) target.classList.add('active');
   }
 
-  // 2. Configurar el filtro específico según la tarjeta presionada
   if (modulo === 'citas') {
     AppState.filtroCitas = criterioFiltro;
     const selectFiltro = document.getElementById('filtro-citas-select');
     if (selectFiltro) selectFiltro.value = criterioFiltro;
-    renderListadoCitas();
+    if (typeof renderListadoCitas === 'function') renderListadoCitas();
   } 
   else if (modulo === 'documentos') {
     AppState.filtroTramites = criterioFiltro;
     const selectFiltro = document.getElementById('filtro-tramites-select');
     if (selectFiltro) selectFiltro.value = criterioFiltro;
-    renderListadoTramites();
+    if (typeof renderListadoTramites === 'function') renderListadoTramites();
   }
 }
 
-// Vincula las tarjetas de totales para que respondan al hacer clic
 function configurarEventosTarjetas() {
   const mapeo = [
     { id: 'kpi-box-por-tomar', mod: 'citas', filtro: 'por-tomar' },
@@ -82,15 +86,16 @@ function configurarEventosTarjetas() {
 }
 
 // ==========================================
-// 4. LOGICA DEL FORMULARIO DINÁMICO (CITAS vs PQRS)
+// 4. FORMULARIO ADAPTATIVO (CITAS vs PQRS)
 // ==========================================
-
 function inyectarCamposDinamicosAlModal() {
   const form = document.getElementById('form-cita');
   if (!form) return;
 
-  // Insertar selector de tipo justo al inicio del formulario si no existe
-  if (!document.getElementById('cita-tipo')) {
+  // Si tu formulario usa 'cita-persona', lo mapearemos internamente a 'paciente'
+  const selectPersona = document.getElementById('cita-persona');
+  if (selectPersona && !document.getElementById('cita-tipo')) {
+    
     const divTipo = document.createElement('div');
     divTipo.className = 'form-group';
     divTipo.innerHTML = `
@@ -102,7 +107,6 @@ function inyectarCamposDinamicosAlModal() {
     `;
     form.insertBefore(divTipo, form.firstChild);
 
-    // Insertar el grupo del subtipo PQRS justo debajo
     const divSubtipo = document.createElement('div');
     divSubtipo.className = 'form-group';
     divSubtipo.id = 'grupo-subtipo-tramite';
@@ -118,27 +122,22 @@ function inyectarCamposDinamicosAlModal() {
     `;
     form.insertBefore(divSubtipo, form.children[1]);
 
-    // Escuchar cambios para ocultar o mostrar campos correspondientes
     document.getElementById('cita-tipo').addEventListener('change', (e) => {
       const esTramite = e.target.value === 'tramite';
       document.getElementById('grupo-subtipo-tramite').style.display = esTramite ? 'block' : 'none';
       
-      // Ocultar select de especialidad si es un trámite administrativo
       const selectEspecialidad = document.getElementById('cita-especialidad');
       if (selectEspecialidad) {
         selectEspecialidad.closest('.form-group').style.display = esTramite ? 'none' : 'block';
       }
     });
   }
-
-  // Llenar selectores normales
   actualizarSelectoresMaestros();
 }
 
 // ==========================================
-// 5. FILTRADO Y NAVEGADOR SEMANAL ESTRICTO
+// 5. RENDERIZADO DE LA AGENDA SEMANAL
 // ==========================================
-
 function navegarSemana(direccion) {
   AppState.fechaBaseSemana.setDate(AppState.fechaBaseSemana.getDate() + (direccion * 7));
   renderPantallaHoyCompleta();
@@ -151,7 +150,6 @@ function renderPantallaHoyCompleta() {
   const etiquetaRango = document.getElementById('weekly-range-label');
   if (!contenedorAgenda) return;
 
-  // Calcular límites de la semana (Lunes a Domingo)
   const fecha = new Date(AppState.fechaBaseSemana);
   const dema = fecha.getDay();
   const diff = fecha.getDate() - dema + (dema === 0 ? -6 : 1);
@@ -162,40 +160,36 @@ function renderPantallaHoyCompleta() {
   domingo.setDate(lunes.getDate() + 6);
   domingo.setHours(23,59,59,999);
 
-  // Mostrar rango en interfaz
   if (etiquetaRango) {
     const opciones = { day: 'numeric', month: 'short' };
     etiquetaRango.textContent = `${lunes.toLocaleDateString('es-ES', opciones)} - ${domingo.toLocaleDateString('es-ES', opciones)}`;
   }
 
-  // Filtrar estrictamente los datos de esta semana
   const eventosSemana = AgendaData.citas.filter(item => {
     const f = new Date(item.fecha + 'T00:00:00');
     return f >= lunes && f <= domingo;
   });
 
-  // Renderizar bloques visuales de la semana
   if (eventosSemana.length === 0) {
     contenedorAgenda.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text2); font-size:14px;">No hay citas ni trámites programados para esta semana.</div>`;
     return;
   }
 
-  // Ordenar cronológicamente
   eventosSemana.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
 
   contenedorAgenda.innerHTML = eventosSemana.map(item => `
-    <div class="card" style="border-left: 4px solid ${item.tipo === 'tramite' ? 'var(--blue)' : 'var(--accent)'}; margin-bottom: 8px;">
-      <div style="display:flex; justify-content:between; align-items:start;">
+    <div class="card" style="border-left: 4px solid ${item.tipo === 'tramite' ? 'var(--blue)' : 'var(--accent)'}; margin-bottom: 8px; padding:16px; background:var(--surface); border-radius:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:start;">
         <div style="flex:1;">
           <span style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text2);">
             ${item.tipo === 'tramite' ? `📄 TRÁMITE (${item.subtipo.toUpperCase()})` : '🏥 CITA MÉDICA'}
           </span>
-          <h4 style="margin:2px 0; font-family:'Fraunces', serif;">${item.tipo === 'tramite' ? item.institucion : item.especialidad}</h4>
-          <p style="font-size:13px; color:var(--text2);">👤 Paciente: ${item.persona} | 📍 ${item.lugar}</p>
+          <h4 style="margin:2px 0; font-family:'Fraunces', serif; font-size:16px;">${item.tipo === 'tramite' ? item.institucion : item.especialidad}</h4>
+          <p style="font-size:13px; color:var(--text2);">👤 Paciente: ${item.paciente || item.persona} | 📍 ${item.lugar}</p>
         </div>
-        <div style="text-align:right;">
-          <span style="background:var(--bg); padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">⏱️ ${item.hora}</span>
-          <div style="font-size:11px; color:var(--text3); margin-top:4px;">${item.fecha}</div>
+          <div style="text-align:right;">
+          <span style="background:var(--bg); padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600; display:inline-block;">⏱️ ${item.hora}</span>
+          <div style="font-size:11px; color:var(--text3); margin-top:6px;">${item.fecha}</div>
         </div>
       </div>
     </div>
@@ -203,14 +197,20 @@ function renderPantallaHoyCompleta() {
 }
 
 // ==========================================
-// 6. FUNCIONES AUXILIARES DE CÁLCULO
+// 6. CÁLCULO OBJETIVO DE TOTALES (KPI)
 // ==========================================
-
 function actualizarTotalesKPI() {
-  const hoyStr = new Date().toISOString().split('T')[0];
+  // Fecha de hoy limpia en formato YYYY-MM-DD
+  const hoy = new Date();
+  const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   
+  // Cuenta de forma estricta las citas médicas futuras o de hoy
   const porTomar = AgendaData.citas.filter(c => c.tipo === 'medica' && c.fecha >= hoyStr).length;
-  const tramitesActivos = AgendaData.citas.filter(c => c.tipo === 'tramite').length; // Cuenta PQRS globales
+  
+  // Cuenta las PQRS/Trámites activos en total
+  const tramitesActivos = AgendaData.citas.filter(c => c.tipo === 'tramite').length; 
+  
+  // Eventos exactos del día de hoy
   const citasHoy = AgendaData.citas.filter(c => c.fecha === hoyStr).length;
 
   const boxPorTomar = document.getElementById('stat-citas-por-tomar');
@@ -233,8 +233,3 @@ function actualizarSelectoresMaestros() {
     selIns.innerHTML = AgendaData.maestros.instituciones.map(i => `<option value="${i}">${i}</option>`).join('') + '<option value="NUEVO">➕ Crear nueva...</option>';
   }
 }
-
-// Funciones vacías por seguridad para evitar errores de carga en las pestañas secundarias
-function renderListadoCitas() { console.log("Filtrando historial de citas a:", AppState.filtroCitas); }
-function renderListadoTramites() { console.log("Filtrando trámites PQRS a:", AppState.filtroTramites); }
-function abrirModalCita() { if(typeof openModal === 'function') openModal('modal-nueva-cita'); }
