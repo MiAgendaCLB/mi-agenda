@@ -1,0 +1,2 @@
+let institucionesYEntidades = [{ id: 1, nombre: 'Colpensiones', tipo: 'Entidad pública' }, { id: 2, nombre: 'SuperSalud', tipo: 'Entidad pública' }];
+function registrarInstitucion(nombre, tipo) { const n = { id: Date.now(), nombre, tipo }; institucionesYEntidades.push(n); sincronizarConSheets('Instituciones', [n.id, nombre, tipo, 'Activa']); return n; }

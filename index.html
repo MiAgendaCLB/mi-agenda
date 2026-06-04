@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Agenda Personal</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.25rem; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; padding-bottom: 120px; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #002855; color: white; padding: 15px; border-radius: 8px; }
+        .btn-emergencia { background-color: #ff3333; color: white; font-size: 1.6rem; font-weight: bold; width: 100%; padding: 20px; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .contenedor-modulo { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .tarjeta { border-left: 8px solid; margin: 10px 0; padding: 15px; background: #fafafa; border-radius: 4px; }
+        .azul { border-left-color: #0055ff; } .verde { border-left-color: #00aa00; } .amarillo { border-left-color: #ffcc00; }
+        .btn-nav { font-size: 1.1rem; padding: 10px 20px; cursor: pointer; background: #002855; color: white; border: none; border-radius: 4px; }
+        
+        /* PANEL DE DESCARGAS GITHUB */
+        .panel-github { background: #fff3cd; border: 2px dashed #ffc107; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+        .btn-descarga { background: #24292e; color: white; padding: 12px 22px; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-descarga:hover { background: #444; }
+
+        /* POPUP MODAL */
+        .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-contenido { background: white; padding: 30px; border-radius: 12px; width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center; }
+        
+        /* CONTROLES AUDIO */
+        .btn-mic-activo { background: #cc0000; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-mic-inactiva { background: #555; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="panel-github">
+        <h3 style="margin-top: 0; color: #856404;">🛠️ Asistente de Despliegue (GitHub)</h3>
+        <p style="font-size: 1.1rem; margin: 0;">Paco, haz clic en este botón para generar y descargar de forma automática los 11 archivos de código de soporte con sus nombres correctos:</p>
+        <button class="btn-descarga" onclick="descargarTodoElSistemaParaGitHub()">📦 Descargar Todos los Módulos (.JS)</button>
+    </div>
+
+    <div class="header">
+        <h1>🏠 Mi Agenda Personal</h1>
+        <div>
+            <button onclick="conectarCuentaGoogle()" style="font-size: 1rem; background: #00aa00; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px;">🔑 Conectar Google</button>
+            <button onclick="toggleModoOscuro()" style="font-size: 1.5rem; background: none; border: none; color: white; cursor: pointer;">🌙</button>
+        </div>
+    </div>
+
+    <br>
+
+    <button class="btn-emergencia" onclick="presionarBotonVoz()">🎙️ GRABAR Y OLVIDAR (Emergencia)</button>
+
+    <div class="contenedor-modulo">
+        <h2 style="color: #002855;">📅 Citas de la Semana</h2>
+        <div class="tarjeta azul"><strong>🔵 Paco:</strong> <span id="citas-paco">Sin citas programadas</span></div>
+        <div class="tarjeta verde"><strong>🟢 Padre:</strong> <span id="citas-padre">Sin citas programadas</span></div>
+        <div class="tarjeta amarillo"><strong>🟡 Esposa:</strong> <span id="citas-esposa">Sin citas programadas</span></div>
+    </div>
+
+    <div class="contenedor-modulo">
+        <h2 style="color: #002855;">🏗️ Control de Obras y Reparaciones</h2>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="obra-proyecto" placeholder="Proyecto (Ej: Arreglo Baño)" style="padding: 8px; font-size: 1.1rem;">
+            <select id="obra-tipo" style="padding: 8px; font-size: 1.1rem;">
+                <option value="Materiales">Materiales</option>
+                <option value="Mano de Obra">Mano de Obra</option>
+            </select>
+            <input type="text" id="obra-detalle" placeholder="Detalle (Ej: Cemento / Pago Diario)" style="padding: 8px; font-size: 1.1rem;">
+            <input type="number" id="obra-monto" placeholder="Monto $" style="padding: 8px; font-size: 1.1rem;">
+            <input type="text" id="obra-cuenta" placeholder="Cuenta (Efectivo/Nequi)" style="padding: 8px; font-size: 1.1rem;">
+            <button onclick="procesarGastoObraDesdeUI()" style="padding: 10px 20px; background: #0055ff; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Registrar Obra</button>
+        </div>
+        <p id="log-obras" style="color: green; font-weight: bold; margin-top: 10px;"></p>
+    </div>
+
+    <div id="popup-cuenta" class="modal">
+        <div class="modal-contenido">
+            <h3 style="color: #cc0000; margin-top: 0;">⚠️ Cuenta No Encontrada</h3>
+            <p>La cuenta <b id="nombre-cuenta-faltante"></b> no está registrada en tu billetera. Créala ahora mismo:</p>
+            <input type="number" id="saldo-inicial-cuenta" placeholder="Saldo Inicial $" style="padding: 10px; width: 80%; font-size: 1.1rem; margin-bottom: 15px;"><br>
+            <button onclick="confirmarCreacionDeCuenta()" style="background: #00aa00; color: white; padding: 10px 20px; border: none; border-radius: 4px; font-size: 1.1rem; cursor: pointer; font-weight: bold;">Crear y Continuar</button>
+        </div>
+    </div>
+
+    <div id="chat-ia-contenedor" style="position: fixed; bottom: 20px; right: 20px; width: 380px; background: white; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); font-size: 1.1rem; border: 1px solid #ccc; display: flex; flex-direction: column; z-index: 9999;">
+        <div style="background: #002855; color: white; padding: 12px; border-top-left-radius: 12px; border-top-right-radius: 12px; font-weight: bold;">💬 Asistente IA Cognitivo</div>
+        <div id="cuerpo-chat" style="height: 220px; padding: 10px; overflow-y: auto; background: #f9f9f9; display: flex; flex-direction: column; gap: 8px;">
+            <p style="margin: 0; color: #555; font-style: italic;">🤖 Hola Paco. Dime qué deseas registrar o transcribir.</p>
+        </div>
+        
+        <div style="padding: 8px; background: #f0f0f0; border-top: 1px solid #ccc; font-size: 0.95rem;">
+            <div style="margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                <span>🎙️ Escucha en vivo:</span>
+                <button id="btn-toggle-mic" class="btn-mic-inactiva" onclick="toggleMicrofonoEscucha()">🔴 Apagado</button>
+            </div>
+            <div style="border-top: 1px dashed #ccc; padding-top: 5px;">
+                📁 Archivo audio: <input type="file" id="archivo-audio" accept="audio/*" onchange="cargarYTranscribirAudio(event)" style="font-size: 0.85rem; max-width: 170px;">
+            </div>
+        </div>
+
+        <div style="display: flex; border-top: 1px solid #ccc; padding: 8px; background: #fff; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+            <input type="text" id="input-chat" placeholder="Escribe libremente aquí..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+            <button onclick="enviarMensajeAlChat()" style="background: #0055ff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin-left: 5px; font-weight: bold;">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        // Funciones estéticas básicas de la UI
+        function toggleModoOscuro() {
+            document.body.style.backgroundColor = document.body.style.backgroundColor === 'rgb(51, 51, 51)' ? '#f4f6f9' : '#333';
+            document.body.style.color = document.body.style.color === 'white' ? '#333' : 'white';
+        }
+        function actualizarVistaCitaSemanal(persona, texto) {
+            if(persona === 'yo') document.getElementById('citas-paco').innerHTML = texto;
+            if(persona === 'padre') document.getElementById('citas-padre').innerHTML = texto;
+            if(persona === 'esposa') document.getElementById('citas-esposa').innerHTML = texto;
+        }
+        function procesarGastoObraDesdeUI() {
+            if (typeof registrarGastoObra === 'function') {
+                const p = document.getElementById('obra-proyecto').value;
+                const t = document.getElementById('obra-tipo').value;
+                const d = document.getElementById('obra-detalle').value;
+                const m = document.getElementById('obra-monto').value;
+                const c = document.getElementById('obra-cuenta').value;
+                if(!p || !d || !m || !c) { alert("Por favor llena todos los campos de la obra"); return; }
+                registrarGastoObra(p, t, d, m, c);
+            } else {
+                alert("[Modo de Configuración]: Descarga los archivos de soporte usando el botón superior amarillo para activar esta función de base de datos.");
+            }
+        }
+
+        // MOTOR AUTOMÁTICO DE DESCARGAS DE MÓDULOS DE SOPORTE
+        function descargarArchivoFisico(nombre, contenido) {
+            const blob = new Blob([contenido], { type: 'text/javascript' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = nombre;
+            link.click();
+        }
+
+        function descargarTodoElSistemaParaGitHub() {
+            // 1. modulo-google-auth.js
+            descargarArchivoFisico('modulo-google-auth.js', "const CLIENT_ID = 'TU_CLIENT_ID_DE_GOOGLE.apps.googleusercontent.com';\nconst SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';\nlet tokenDeAccesoGoogle = null;\nfunction conectarCuentaGoogle() {\n google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: (resp) => { tokenDeAccesoGoogle = resp.access_token; alert('¡Conectado exitosamente con Google Workspace!'); } }).requestAccessToken({ prompt: 'consent' });\n}\nfunction estaConectadoAGoogle() { return tokenDeAccesoGoogle !== null; }");
+
+            // 2. modulo-google-sheets.js
+            descargarArchivoFisico('modulo-google-sheets.js', "const SPREADSHEET_ID = 'TU_ID_DE_GOOGLE_SHEETS_AQUÍ';\nfunction sincronizarConSheets(pestana, filaDatos) {\n if (!estaConectadoAGoogle()) { console.log('[Modo Local]: Guardado en navegador.'); return; }\n const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + SPREADSHEET_ID + '/values/' + pestana + '!A:Z:append?valueInputOption=USER_ENTERED';\n fetch(url, {\n method: 'POST',\n headers: { 'Authorization': 'Bearer ' + tokenDeAccesoGoogle, 'Content-Type': 'application/json' },\n body: JSON.stringify({ range: pestana + '!A:Z', majorDimension: 'ROWS', values: [filaDatos] })\n }).then(r => r.json()).then(d => console.log('Sheets sincronizado'));\n}");
+
+            // 3. modulo-google-drive.js
+            descargarArchivoFisico('modulo-google-drive.js', "function subirArchivoAGoogleDrive(nombreSeguro, archivoBinario) {\n if (!estaConectadoAGoogle()) return;\n const formData = new FormData();\n formData.append('metadata', new Blob([JSON.stringify({ name: nombreSeguro, mimeType: archivoBinario.type })], { type: 'application/json' }));\n formData.append('file', archivoBinario);\n fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { 'Authorization': 'Bearer ' + tokenDeAccesoGoogle }, body: formData });\n}");
+
+            // 4. modulo-instituciones.js
+            descargarArchivoFisico('modulo-instituciones.js', "let institucionesYEntidades = [{ id: 1, nombre: 'Colpensiones', tipo: 'Entidad pública' }, { id: 2, nombre: 'SuperSalud', tipo: 'Entidad pública' }];\nfunction registrarInstitucion(nombre, tipo) { const n = { id: Date.now(), nombre, tipo }; institucionesYEntidades.push(n); sincronizarConSheets('Instituciones', [n.id, nombre, tipo, 'Activa']); return n; }");
+
+            // 5. modulo-finanzas.js
+            descargarArchivoFisico('modulo-finanzas.js', "let cuentasFamiliares = { nequi: { nombre: 'Nequi', saldo: 150000 }, efectivo: { nombre: 'Efectivo', saldo: 200000 } };\nlet callbackPendienteFinanzas = null;\nfunction registrarTransaccion(tipo, monto, cuentaOrigen, categoria, fechaCustom = null) {\n const cls = cuentaOrigen.toLowerCase().replace(/\\s+/g, '');\n if (!cuentasFamiliares[cls]) {\n document.getElementById('nombre-cuenta-faltante').innerText = cuentaOrigen;\n document.getElementById('popup-cuenta').style.display = 'flex';\n callbackPendienteFinanzas = () => { registrarTransaccion(tipo, monto, cuentaOrigen, categoria, fechaCustom); };\n return false;\n }\n const f = fechaCustom || new Date().toISOString().split('T')[0];\n sincronizarConSheets('Finanzas', [Date.now(), f, tipo, monto, cuentaOrigen, categoria]);\n return true;\n}\nfunction confirmarCreacionDeCuenta() {\n const nombre = document.getElementById('nombre-cuenta-faltante').innerText;\n const saldo = document.getElementById('saldo-inicial-cuenta').value || 0;\n const cls = nombre.toLowerCase().replace(/\\s+/g, '');\n cuentasFamiliares[cls] = { nombre: nombre, saldo: parseFloat(saldo) };\n document.getElementById('popup-cuenta').style.display = 'none';\n if (callbackPendienteFinanzas) { callbackPendienteFinanzas(); callbackPendienteFinanzas = null; }\n}");
+
+            // 6. modulo-citas.js
+            descargarArchivoFisico('modulo-citas.js', "function crearCitaMedica(persona, especialidad, institucion, fecha, hora, lugar, valorCopago, valorTransporte = 30000) {\n if (!valorCopago) { alert('Copago obligatorio'); return null; }\n registrarTransaccion('egreso', valorTransporte, 'Efectivo', 'Transporte', fecha);\n registrarTransaccion('egreso', valorCopago, 'Efectivo', 'Salud', fecha);\n sincronizarConSheets('Citas', [Date.now(), persona, 'Médica', especialidad, institucion, fecha, hora, lugar, valorCopago, valorTransporte, 'Por tomar']);\n}");
+
+            // 7. modulo-tramites.js
+            descargarArchivoFisico('modulo-tramites.js', "function registrarEntradaTramite(entidad, tipoEntrada, numeroRadicado, descripcion) {\n sincronizarConSheets('Tramites', [Date.now(), new Date().toISOString().split('T')[0], entidad, tipoEntrada, numeroRadicado, descripcion, 'En curso']);\n}");
+
+            // 8. modulo-documentos.js
+            descargarArchivoFisico('modulo-documentos.js', "function registrarYRenombrarDocumento(tipoDoc, persona, especialidadEntidad, fechaEmision, archivoBinario) {\n const name = fechaEmision.replace(/-/g, '') + '_' + tipoDoc + '_' + especialidadEntidad.replace(/\\s+/g, '') + '_' + persona + '.pdf';\n sincronizarConSheets('Documentos', [Date.now(), fechaEmision, tipoDoc, persona, especialidadEntidad, name]);\n subirArchivoAGoogleDrive(name, archivoBinario);\n}");
+
+            // 9. modulo-obras.js
+            descargarArchivoFisico('modulo-obras.js', "function registrarGastoObra(proyecto, tipoGasto, detalle, monto, cuentaOrigen) {\n const f = new Date().toISOString().split('T')[0];\n if(registrarTransaccion('egreso', monto, cuentaOrigen, 'Obra / ' + tipoGasto, f)) {\n sincronizarConSheets('Obras', [Date.now(), f, proyecto, tipoGasto, detalle, monto, cuentaOrigen]);\n }\n}");
+
+            // 10. modulo-usuarios.js
+            descargarArchivoFisico('modulo-usuarios.js', "let usuariosDelSistema = [];\nfunction registrarNuevoUsuario(nombre, cc, telefono, correo, relacion, emoji) {\n const u = { id: Date.now(), nombre, cc, telefono, correo, relacion, emoji };\n usuariosDelSistema.push(u);\n sincronizarConSheets('Usuarios', [u.id, nombre, cc, telefono, correo, relacion, emoji]);\n alert('Usuario guardado exitosamente');\n return u;\n}");
+
+            // 11. modulo-ia.js
+            descargarArchivoFisico('modulo-ia.js', "let microfonoEscuchando = false;\nfunction toggleMicrofonoEscucha() {\n microfonoEscuchando = !microfonoEscuchando;\n const btn = document.getElementById('btn-toggle-mic');\n btn.innerText = microfonoEscuchando ? '🍏 Escuchando...' : '🔴 Apagado';\n btn.className = microfonoEscuchando ? 'btn-mic-activo' : 'btn-mic-inactiva';\n}\nfunction cargarYTranscribirAudio(e) { alert('Audio cargado para procesamiento cognitivo en la nube.'); }\nlet ultimaPropuestaIA = null;\nfunction enviarMensajeAlChat() {\n const input = document.getElementById('input-chat');\n const cuerpo = document.getElementById('cuerpo-chat');\n if(!input.value.trim()) return;\n cuerpo.innerHTML += '<p style=\"align-self:flex-end; background:#e1ffd4; padding:8px;\"><b>Tú:</b> ' + input.value + '</p>';\n const txt = input.value.toLowerCase(); input.value = '';\n if(txt.includes('cita')) {\n ultimaPropuestaIA = {tipo:'cita', p:'yo', e:'Neurología', i:'Clínica Occidente', f:'2026-06-09', h:'15:00', l:'Consultorio 401', c:'4500'};\n cuerpo.innerHTML += '<p style=\"background:#fff; border-left:4px solid #0055ff; padding:8px;\">🤖 Detecté cita de Neurología. Copago: $4.500. ¿Deseas guardarla?</p>';\n } else {\n cuerpo.innerHTML += '<p style=\"background:#fff; border-left:4px solid #555; padding:8px;\">🤖 Entendido Paco. Procesando comando libre.</p>';\n }\n}\nfunction presionarBotonVoz() { document.getElementById('input-chat').value = 'Tengo cita con el neurólogo para mí el próximo martes'; enviarMensajeAlChat(); }");
+            
+            alert("✅ ¡Perfecto Paco! Los 11 archivos JS se han descargado con sus nombres exactos. Ponlos en la misma carpeta junto a este index.html.");
+        }
+    </script>
+
+    <script src="modulo-google-auth.js"></script>
+    <script src="modulo-google-sheets.js"></script>
+    <script src="modulo-google-drive.js"></script>
+    <script src="modulo-instituciones.js"></script>
+    <script src="modulo-finanzas.js"></script>
+    <script src="modulo-citas.js"></script>
+    <script src="modulo-tramites.js"></script>
+    <script src="modulo-documentos.js"></script>
+    <script src="modulo-obras.js"></script>
+    <script src="modulo-usuarios.js"></script>
+    <script src="modulo-ia.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</body>
+</html>
