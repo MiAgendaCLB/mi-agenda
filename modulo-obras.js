@@ -1,122 +1,128 @@
 /* ==========================================================================
-   MODULO-OBRAS.JS - CONTROL AVANZADO DE PROYECTOS Y REFORMAS V8
+   MODULO-OBRAS.JS - CONTROL DE INFRAESTRUCTURA Y GESTIÓN TÉCNICA V8.1
    ========================================================================== */
 
 if (!window.AppState) window.AppState = {};
-if (!window.AppState.obras) {
-  window.AppState.obras = JSON.parse(localStorage.getItem('agenda_obras')) || [
-    {
-      id: 'obra_1',
-      proyecto: 'Remodelación Baño Principal',
-      presupuestoAsignado: 3500000,
-      gastado: 1200000,
-      etapasTotal: 4,
-      etapasListas: 2
-    }
-  ];
-}
+if (!window.AppState.obrasProyectos) window.AppState.obrasProyectos = JSON.parse(localStorage.getItem('agenda_obras_proyectos')) || [];
+if (!window.AppState.cotizaciones) window.AppState.cotizaciones = JSON.parse(localStorage.getItem('agenda_cotizaciones')) || [];
 
 document.addEventListener('DOMContentLoaded', () => {
+  actualizarSelectCotizacionesEnObra();
   renderObras();
 });
 
+function actualizarSelectCotizacionesEnObra() {
+  const el = document.getElementById('obra-cotizacion-vinculo');
+  if(el) {
+    el.innerHTML = `<option value="NINGUNA">Sin cotización (Gasto directo)</option>` + 
+    window.AppState.cotizaciones.map(c => `<option value="${c.id}">${c.proyecto} [${c.proveedor}] ($${c.total.toLocaleString()})</option>`).join('');
+  }
+}
+
+function ejecutarCrearCotizacion() {
+  const proj = document.getElementById('cot-proyecto').value.trim();
+  const prov = document.getElementById('cot-proveedor').value.trim();
+  const tot = parseFloat(document.getElementById('cot-total').value) || 0;
+
+  if(!proj || !prov || tot <= 0) return;
+
+  window.AppState.cotizaciones.push({ id: 'cot_'+Date.now(), proyecto: proj, proveedor: prov, total: tot });
+  localStorage.setItem('agenda_cotizaciones', JSON.stringify(window.AppState.cotizaciones));
+  
+  document.getElementById('form-cotizacion').reset();
+  closeModal('modal-nueva-cotizacion');
+  actualizarSelectCotizacionesEnObra();
+  showToast('Cotización indexada al libro de presupuestos.');
+  renderObras();
+}
+
+function ejecutarGastoObraReal() {
+  const proyNombre = document.getElementById('obra-proyecto').value.trim();
+  const responsable = document.getElementById('obra-responsable').value.trim();
+  const cotId = document.getElementById('obra-cotizacion-vinculo').value;
+  const monto = parseFloat(document.getElementById('obra-monto').value) || 0;
+  const cuentaPago = document.getElementById('obra-cuenta-pago').value;
+  const detalle = document.getElementById('obra-detalle').value.trim();
+
+  if(!proyNombre || !responsable || monto <= 0 || !detalle) {
+    alert('Llena los datos del frente de obra.'); return;
+  }
+
+  let pObj = window.AppState.obrasProyectos.find(p => p.nombre.toLowerCase() === proyNombre.toLowerCase());
+  if(!pObj) {
+    pObj = { id: 'proy_'+Date.now(), nombre: proyNombre, tareas: [] };
+    window.AppState.obrasProyectos.push(pObj);
+  }
+
+  const itemTarea = {
+    id: 'tar_'+Date.now(), responsable, cotizacionId: cotId, costo: monto, detalle, estado: 'completada'
+  };
+  pObj.tareas.push(itemTarea);
+  localStorage.setItem('agenda_obras_proyectos', JSON.stringify(window.AppState.obrasProyectos));
+
+  // Comunicación puente cruzada automática a finanzas
+  if(typeof registrarGastoDesdeModulo === 'function') {
+    registrarGastoDesdeModulo(monto, `Materiales Obra [Ref: ${itemTarea.id}]: ${detalle} (Por: ${responsable})`, cuentaPago, '🧱 Materiales Obra');
+  }
+
+  document.getElementById('form-obra').reset();
+  closeModal('modal-nueva-obra');
+  renderObras();
+  showToast('Gasto inyectado a la obra y descontado de caja bancaria.');
+}
+
 function renderObras() {
   const container = document.getElementById('obras-container');
-  if (!container) return;
+  if(!container) return;
 
-  if (window.AppState.obras.length === 0) {
-    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text3);">No hay obras registradas.</div>`;
+  if (window.AppState.obrasProyectos.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text3);">No hay proyectos de construcción en ejecución.</div>`;
     return;
   }
 
-  container.innerHTML = window.AppState.obras.map(obra => {
-    // Calcular avance real combinado (Promedio entre presupuesto consumido y etapas físicas hechas)
-    const porcentajeDinero = Math.min(100, Math.round((obra.gastado / obra.presupuestoAsignado) * 100));
-    const porcentajeEtapas = Math.round((obra.etapasListas / obra.etapasTotal) * 100);
-    const avanceRealCombinado = Math.round((porcentajeDinero + porcentajeEtapas) / 2);
+  container.innerHTML = window.AppState.obrasProyectos.map(p => {
+    // Presupuesto dinámico sumando cotizaciones vinculadas
+    const cotizacionesDelProyecto = window.AppState.cotizaciones.filter(c => c.proyecto.toLowerCase() === p.nombre.toLowerCase());
+    const presupuestoCalculado = cotizacionesDelProyecto.reduce((acc, current) => acc + current.total, 0) || 1000000; // Valor de contingencia si no hay cotizaciones
+    
+    const totalInvertido = p.tareas.reduce((acc, curr) => acc + curr.costo, 0);
+    const pctGasto = Math.min(100, Math.round((totalInvertido / presupuestoCalculado) * 100));
 
     return `
       <div class="card card-highlight" style="border-left-color: var(--amber);">
-        <div style="font-family:'Fraunces',serif; font-size:19px; font-weight:700; color:var(--text)">
-          ${obra.proyecto}
-        </div>
+        <div style="font-family:'Fraunces',serif; font-size:18px; font-weight:700;">🏗️ Frente: ${p.nombre}</div>
         
-        <div class="progress-wrap">
+        <div class="progress-wrap" style="margin-top:8px;">
           <div class="progress-labels">
-            <span>Avance Constructivo Integral</span>
-            <strong>${avanceRealCombinado}%</strong>
+            <span>Ejecución del Presupuesto de Cotizaciones</span>
+            <strong>${pctGasto}%</strong>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: ${avanceRealCombinado}%"></div>
-          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width: ${pctGasto}%; background-color:var(--amber);"></div></div>
         </div>
 
-        <div class="card-meta" style="margin-top:10px; font-size:13px; color:var(--text2)">
-          <span>🧱 Gastado: <b>$${obra.gastado.toLocaleString()}</b> de $${obra.presupuestoAsignado.toLocaleString()}</span> · 
-          <span>🛠️ Tareas: <b>${obra.etapasListas} de ${obra.etapasTotal} completadas</b></span>
+        <div style="font-size:12px; margin-top:8px; color:var(--text2);">
+          💰 Invertido Real: <b>$${totalInvertido.toLocaleString()}</b> de un presupuesto cotizado de $${presupuestoCalculado.toLocaleString()}
         </div>
 
-        <div class="card-actions" style="margin-top:14px;">
-          <button class="btn btn-outline btn-sm" onclick="marcarEtapaLista('${obra.id}')">🔨 Avanzar Tarea Física</button>
-          <button class="btn btn-danger btn-sm" onclick="eliminarProyectoObra('${obra.id}')">🗑️ Archivar</button>
+        <div style="margin-top:10px; background:var(--surface2); padding:8px; border-radius:6px;">
+          <div style="font-size:11px; font-weight:700; margin-bottom:5px; text-transform:uppercase; color:var(--text2);">Desglose de Ítems y Responsables:</div>
+          ${p.tareas.map(t => `
+            <div style="font-size:12px; display:flex; justify-content:space-between; border-bottom:1px dashed var(--border); padding:3px 0;">
+              <span>🛠️ <b>${t.responsable}</b>: ${t.detalle} <small style="color:var(--text3)">[ID: ${t.id}]</small></span>
+              <strong style="color:var(--red);">$${t.costo.toLocaleString()}</strong>
+            </div>
+          `).join('') || '<div style="font-size:11px; color:var(--text3);">Sin registros materiales asignados.</div>'}
+        </div>
+        <div class="card-actions" style="justify-content:flex-end; margin-top:10px;">
+          <button class="btn btn-danger btn-sm" onclick="eliminarFrenteObra('${p.id}')">🗑️ Archivar Frente</button>
         </div>
       </div>
     `;
   }).join('');
 }
 
-// Vinculación del formulario modal del index.html para registrar gastos directo
-window.ejecutarGastoObra = function() {
-  const proyNombre = document.getElementById('obra-proyecto').value.trim();
-  const tipoGasto = document.getElementById('obra-tipo').value;
-  const monto = parseFloat(document.getElementById('obra-monto').value) || 0;
-  const detalle = document.getElementById('obra-detalle').value.trim();
-  const cNombre = document.getElementById('obra-cuenta').value || 'Efectivo';
-
-  if (!proyNombre || monto <= 0 || !detalle) { alert('Completa los campos de la obra.'); return; }
-
-  // Buscar si el frente de obra ya existe o crear uno nuevo
-  let obra = window.AppState.obras.find(o => o.proyecto.toLowerCase() === proyNombre.toLowerCase());
-  if (!obra) {
-    obra = {
-      id: 'obra_' + Date.now(),
-      proyecto: proyNombre,
-      presupuestoAsignado: monto * 3, // Estimación inicial automática
-      gastado: 0,
-      etapasTotal: 5,
-      etapasListas: 1
-    };
-    window.AppState.obras.push(obra);
-  }
-
-  obra.gastado += monto;
-
-  // CONEXIÓN AL PUENTE CONTABLE: Manda el egreso de forma automatizada al módulo de finanzas
-  if (typeof registrarGastoDesdeModulo === 'function') {
-    registrarGastoDesdeModulo(monto, `Materiales Obra: ${detalle} (${proyNombre})`, cNombre);
-  }
-
-  guardarObrasEnStorage();
+function eliminarFrenteObra(id) {
+  window.AppState.obrasProyectos = window.AppState.obrasProyectos.filter(p => p.id !== id);
+  localStorage.setItem('agenda_obras_proyectos', JSON.stringify(window.AppState.obrasProyectos));
   renderObras();
-  closeModal('modal-nueva-obra');
-  if (typeof showToast === 'function') showToast('Gasto inyectado a la obra y descontado de caja.');
-};
-
-function marcarEtapaLista(id) {
-  const obra = window.AppState.obras.find(o => o.id === id);
-  if (obra && obra.etapasListas < obra.etapasTotal) {
-    obra.etapasListas += 1;
-    guardarObrasEnStorage();
-    renderObras();
-  }
-}
-
-function eliminarProyectoObra(id) {
-  window.AppState.obras = window.AppState.obras.filter(o => o.id !== id);
-  guardarObrasEnStorage();
-  renderObras();
-}
-
-function guardarObrasEnStorage() {
-  localStorage.setItem('agenda_obras', JSON.stringify(window.AppState.obras));
 }
