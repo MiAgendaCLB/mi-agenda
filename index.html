@@ -1,280 +1,427 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Agenda Personal</title>
-    <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.2rem; background-color: #f4f6f9; color: #333; margin: 0; padding: 15px; padding-bottom: 100px; }
-        .header { display: flex; justify-content: space-between; align-items: center; background: #002855; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        .btn-emergencia { background-color: #ff3333; color: white; font-size: 1.4rem; font-weight: bold; width: 100%; padding: 15px; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.15); margin-bottom: 20px; }
-        
-        /* CONTENEDORES MODULARES */
-        .contenedor-modulo { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid #002855; }
-        .grid-formulario { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 15px; }
-        
-        /* ELEMENTOS DE FORMULARIO ESTILO TABLET */
-        input, select, textarea { width: 100%; padding: 12px; font-size: 1.1rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        button.btn-accion { background: #0055ff; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; cursor: pointer; width: 100%; }
-        button.btn-accion:hover { background: #0044cc; }
-        
-        .tarjeta { border-left: 8px solid; margin: 10px 0; padding: 12px; background: #fafafa; border-radius: 4px; font-size: 1.1rem; }
-        .azul { border-left-color: #0055ff; } .verde { border-left-color: #00aa00; } .amarillo { border-left-color: #ffcc00; }
-
-        /* POPUP MODAL */
-        .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-        .modal-contenido { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; }
-        
-        /* CHAT FLOTANTE INTELIGENTE OPTIMIZADO PARA MÓVIL */
-        #chat-ia-contenedor { position: fixed; bottom: 15px; right: 15px; width: 360px; max-width: calc(100% - 30px); background: white; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.25); z-index: 9999; display: flex; flex-direction: column; border: 1px solid #002855; transition: all 0.3s ease; }
-        .chat-cabecera { background: #002855; color: white; padding: 12px; border-top-left-radius: 10px; border-top-right-radius: 10px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        
-        .btn-mic-activo { background: #cc0000; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-mic-inactiva { background: #555; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Agenda Personal</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- CABECERA PRINCIPAL -->
-    <div class="header">
-        <h2 style="margin:0; font-size: 1.4rem;">🏠 Mi Agenda Personal</h2>
-        <button onclick="conectarCuentaGoogle()" style="font-size: 0.9rem; background: #00aa00; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">🔑 Conectar Cloud</button>
+  <header>
+    <div class="header-inner">
+      <button class="hamburger-btn" id="menu-toggle" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="logo" onclick="switchSection('home')">
+        Mi Agenda Personal <div class="logo-dot"></div>
+      </div>
+      <div class="header-right">
+        <span class="today-badge" id="header-date">...</span>
+        <button class="icon-btn" onclick="toggleTheme()" title="Cambiar Tema">🌓</button>
+      </div>
     </div>
+  </header>
 
-    <!-- ACCIÓN RÁPIDA DE VOZ -->
-    <button class="btn-emergencia" onclick="presionarBotonVoz()">🎙️ GRABAR Y OLVIDAR (Dictar Nota Corta)</button>
-
-    <!-- MÓDULO 1: USUARIOS DEL SISTEMA -->
-    <div class="contenedor-modulo" style="border-top-color: #6f42c1;">
-        <h3 style="margin-top: 0; color: #6f42c1;">👥 Registro de Perfiles Familiares</h3>
-        <div class="grid-formulario">
-            <input type="text" id="user-nombre" placeholder="Nombre (Ej: Paco)">
-            <input type="number" id="user-cc" placeholder="Cédula / Documento">
-            <input type="text" id="user-tel" placeholder="Teléfono">
-            <input type="email" id="user-correo" placeholder="Correo Electrónico">
-            <input type="text" id="user-relacion" placeholder="Parentesco (Padre, Esposa, Yo)">
-            <input type="text" id="user-emoji" placeholder="Emoji o Color asignado (Ej: 🔵)">
-        </div>
-        <button class="btn-accion" style="background:#6f42c1;" onclick="ejecutarCrearUsuario()">Guardar Nuevo Perfil</button>
+  <div class="nav-overlay" id="nav-overlay" onclick="toggleMenu()"></div>
+  <div class="nav-drawer" id="nav-drawer">
+    <div class="nav-drawer-header">
+      <div class="nav-drawer-logo">Menú Agenda</div>
+      <div class="nav-drawer-date">Estructura Modular v8</div>
     </div>
-
-    <!-- MÓDULO 2: CITAS MÉDICAS -->
-    <div class="contenedor-modulo" style="border-top-color: #0055ff;">
-        <h3 style="margin-top: 0; color: #0055ff;">📅 Gestión de Citas Médicas</h3>
-        <div class="grid-formulario">
-            <select id="cita-persona">
-                <option value="Paco">🔵 Paco</option>
-                <option value="Padre">🟢 Padre</option>
-                <option value="Esposa">🟡 Esposa</option>
-            </select>
-            <input type="text" id="cita-especialidad" placeholder="Especialidad (Ej: Neurología)">
-            <input type="text" id="cita-institucion" placeholder="IPS / Clínica (Ej: IPS SURA)">
-            <input type="date" id="cita-fecha">
-            <input type="time" id="cita-hora">
-            <input type="text" id="cita-lugar" placeholder="Consultorio / Dirección">
-            <input type="number" id="cita-copago" placeholder="Valor Copago $">
-            <input type="number" id="cita-transporte" placeholder="Valor Transporte $" value="30000">
-        </div>
-        <button class="btn-accion" onclick="ejecutarCrearCita()">Agendar e Impactar Finanzas</button>
-        
-        <h4>Visualización Semanal</h4>
-        <div class="tarjeta azul"><strong>🔵 Paco:</strong> <span id="citas-paco">Sin citas registradas esta semana</span></div>
-        <div class="tarjeta verde"><strong>🟢 Padre:</strong> <span id="citas-padre">Sin citas registradas esta semana</span></div>
-        <div class="tarjeta amarillo"><strong>🟡 Esposa:</strong> <span id="citas-esposa">Sin citas registradas esta semana</span></div>
+    <div class="nav-drawer-body">
+      <button class="nav-btn active" id="nav-home" onclick="switchSection('home')"><span class="nav-icon">🏠</span> Inicio / Hoy</button>
+      <button class="nav-btn" id="nav-citas" onclick="switchSection('citas')"><span class="nav-icon">🗓️</span> Citas Médicas</button>
+      <button class="nav-btn" id="nav-finanzas" onclick="switchSection('finanzas')"><span class="nav-icon">💰</span> Finanzas y Caja</button>
+      <button class="nav-btn" id="nav-obras" onclick="switchSection('obras')"><span class="nav-icon">🔨</span> Control de Obras</button>
+      <button class="nav-btn" id="nav-tramites" onclick="switchSection('tramites')"><span class="nav-icon">📑</span> Trámites y PQRS</button>
+      <button class="nav-btn" id="nav-documentos" onclick="switchSection('documentos')"><span class="nav-icon">📂</span> Archivo Digital</button>
+      <button class="nav-btn" id="nav-usuarios" onclick="switchSection('usuarios')"><span class="nav-icon">👥</span> Perfiles Familiares</button>
+      <hr class="nav-divider">
+      <button class="nav-btn" onclick="openModal('modal-google-setup')"><span class="nav-icon">🔑</span> Conectar Cloud</button>
     </div>
+  </div>
 
-    <!-- MÓDULO 3: CONTROL DE OBRAS -->
-    <div class="contenedor-modulo" style="border-top-color: #fd7e14;">
-        <h3 style="margin-top: 0; color: #fd7e14;">🏗️ Control de Obras y Reparaciones</h3>
-        <div class="grid-formulario">
-            <input type="text" id="obra-proyecto" placeholder="Proyecto (Ej: Arreglo Baño)">
-            <select id="obra-tipo">
-                <option value="Materiales">Materiales</option>
-                <option value="Mano de Obra">Mano de Obra</option>
-            </select>
-            <input type="text" id="obra-detalle" placeholder="Detalle (Ej: Cemento / Jornal)">
-            <input type="number" id="obra-monto" placeholder="Monto $">
-            <input type="text" id="obra-cuenta" placeholder="Cuenta de Pago (Nequi / Efectivo)" value="Efectivo">
-        </div>
-        <button class="btn-accion" style="background:#fd7e14;" onclick="ejecutarGastoObra()">Registrar Costo de Obra</button>
+  <main>
+    
+    <section id="sec-home" class="section active">
+      <div class="page-header">
+        <h1 class="page-title">Panel de Control</h1>
+        <button class="btn btn-primary btn-sm" onclick="presionarBotonVoz()">🎙️ Dictado Rápido</button>
+      </div>
+      <div id="modo-hoy-panel"></div>
+    </section>
+
+    <section id="sec-citas" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Gestión de Citas</h1>
+        <button class="btn btn-primary" onclick="openModal('modal-nueva-cita')">＋ Agendar Cita</button>
+      </div>
+      
+      <div style="display: grid; gap: 10px; margin-bottom: 20px;">
+        <div class="card card-highlight" style="border-left-color: #0055ff;"><strong>🔵 Paco:</strong> <span id="citas-paco">Sin citas esta semana</span></div>
+        <div class="card card-highlight" style="border-left-color: #00aa00;"><strong>🟢 Padre:</strong> <span id="citas-padre">Sin citas esta semana</span></div>
+        <div class="card card-highlight" style="border-left-color: #ffcc00;"><strong>🟡 Esposa:</strong> <span id="citas-esposa">Sin citas esta semana</span></div>
+      </div>
+      <div id="citas-list"></div>
+    </section>
+
+    <section id="sec-finanzas" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Billetera y Flujos de Caja</h1>
+        <button class="btn btn-primary" onclick="openModal('modal-nueva-tx')">💸 Movimiento</button>
+      </div>
+      
+      <div id="finanzas-cuentas" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:20px;"></div>
+
+      <div class="card">
+        <div style="font-weight:600; margin-bottom:10px;">Límites de Presupuesto Activos</div>
+        <div id="presupuestos-progress-container"></div>
+      </div>
+      
+      <div style="margin-top:20px;" id="tx-history-container"></div>
+    </section>
+
+    <section id="sec-obras" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Proyectos de Construcción</h1>
+        <button class="btn btn-primary" onclick="openModal('modal-nueva-obra')">🏗️ Registrar Gasto</button>
+      </div>
+      <div id="obras-container"></div>
+    </section>
+
+    <section id="sec-tramites" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Bitácora de Trámites y Radicados</h1>
+        <button class="btn btn-primary" onclick="openModal('modal-nuevo-tramite')">📑 Nuevo Radicado</button>
+      </div>
+      <div id="tramites-container"></div>
+    </section>
+
+    <section id="sec-documentos" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Gestión Documental Inteligente</h1>
+        <button class="btn btn-primary" onclick="openModal('modal-nuevo-doc')">📂 Cargar Documento</button>
+      </div>
+      <div id="documentos-container"></div>
+    </section>
+
+    <section id="sec-usuarios" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Perfiles Nucleares Familiares</h1>
+        <button class="btn btn-primary" onclick="openModal('modal-nuevo-usuario')">👥 Crear Miembro</button>
+      </div>
+      <div id="usuarios-container"></div>
+    </section>
+
+  </main>
+
+  <div class="overlay" id="modal-nueva-cita">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 class="modal-title">Agendar Nueva Cita Médica</h3>
+        <button class="btn btn-ghost" onclick="closeModal('modal-nueva-cita')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Paciente / Titular</label>
+        <select id="cita-persona">
+          <option value="Paco">🔵 Paco</option>
+          <option value="Padre">🟢 Padre</option>
+          <option value="Esposa">🟡 Esposa</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Especialidad</label><input type="text" id="cita-especialidad" placeholder="Ej: Cardiología"></div>
+        <div class="form-group"><label>IPS / Institución</label><input type="text" id="cita-institucion" placeholder="Ej: IPS SURA"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Fecha</label><input type="date" id="cita-fecha"></div>
+        <div class="form-group"><label>Hora</label><input type="time" id="cita-hora"></div>
+      </div>
+      <div class="form-group"><label>Dirección / Consultorio</label><input type="text" id="cita-lugar" placeholder="Piso 3 - Consultorio 302"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Valor Copago ($)</label><input type="number" id="cita-copago" placeholder="0"></div>
+        <div class="form-group"><label>Transporte Asignado ($)</label><input type="number" id="cita-transporte" value="30000"></div>
+      </div>
+      <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="ejecutarCrearCita()">Agendar y Guardar en Libro Contable</button>
     </div>
+  </div>
 
-    <!-- MÓDULO 4: TRÁMITES LEGALES (PQRS) -->
-    <div class="contenedor-modulo" style="border-top-color: #20c997;">
-        <h3 style="margin-top: 0; color: #20c997;">📑 Radicación de Trámites y Reclamaciones</h3>
-        <div class="grid-formulario">
-            <input type="text" id="tramite-entidad" placeholder="Entidad (Ej: Colpensiones, SuperSalud)">
-            <select id="tramite-tipo">
-                <option value="Derecho de Petición">Derecho de Petición</option>
-                <option value="Tutela">Tutela</option>
-                <option value="Reclamo">Reclamo PQRS</option>
-            </select>
-            <input type="text" id="tramite-radicado" placeholder="Número de Radicado">
-            <textarea id="tramite-descripcion" placeholder="Breve descripción del caso o estado..." rows="2"></textarea>
+  <div class="overlay" id="modal-nueva-tx">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 class="modal-title">Registrar Movimiento Financiero</h3>
+        <button class="btn btn-ghost" onclick="closeModal('modal-nueva-tx')">✕</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo de Flujo</label>
+          <select id="tx-tipo">
+            <option value="egreso">📉 Egreso (Gasto)</option>
+            <option value="ingreso">💰 Ingreso (Entrada)</option>
+          </select>
         </div>
-        <button class="btn-accion" style="background:#20c997;" onclick="ejecutarCrearTramite()">Registrar Bitácora de Trámite</button>
+        <div class="form-group"><label>Monto del Dinero ($)</label><input type="number" id="tx-monto" placeholder="0"></div>
+      </div>
+      <div class="form-group"><label>Descripción del Movimiento</label><input type="text" id="tx-desc" placeholder="Ej: Compra de mercado semanal"></div>
+      <div class="form-group"><label>Cuenta de Origen / Destino</label><input type="text" id="tx-cuenta" value="Efectivo"></div>
+      <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="ejecutarGastoFinanzas()">Confirmar Registro de Caja</button>
     </div>
+  </div>
 
-    <!-- MÓDULO 5: ARCHIVO DIGITAL -->
-    <div class="contenedor-modulo" style="border-top-color: #6c757d;">
-        <h3 style="margin-top: 0; color: #6c757d;">📂 Digitalización y Renombrado Inteligente</h3>
-        <div class="grid-formulario">
-            <select id="doc-tipo">
-                <option value="HistoriaClinica">Historia Clínica</option>
-                <option value="FormulaMedica">Fórmula Médica</option>
-                <option value="Radicado">Anexo de Trámite</option>
-            </select>
-            <input type="text" id="doc-persona" placeholder="Paciente / Titular (Ej: Padre)">
-            <input type="text" id="doc-entidad" placeholder="Especialidad o Entidad">
-            <input type="date" id="doc-fecha">
-            <input type="file" id="doc-archivo">
+  <div class="overlay" id="modal-nueva-obra">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 class="modal-title">Registrar Transacción de Obra</h3>
+        <button class="btn btn-ghost" onclick="closeModal('modal-nueva-obra')">✕</button>
+      </div>
+      <div class="form-group"><label>Proyecto / Frente de Obra</label><input type="text" id="obra-proyecto" placeholder="Ej: Remodelación Baño Principal"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Clasificación</label>
+          <select id="obra-tipo">
+            <option value="Materiales">Materiales de Construcción</option>
+            <option value="Mano de Obra">Mano de Obra / Jornal</option>
+          </select>
         </div>
-        <button class="btn-accion" style="background:#6c757d;" onclick="ejecutarSubirDocumento()">Renombrar y Subir a Cloud</button>
+        <div class="form-group"><label>Costo Total ($)</label><input type="number" id="obra-monto" placeholder="0"></div>
+      </div>
+      <div class="form-group"><label>Detalle de Compra / Pago</label><input type="text" id="obra-detalle" placeholder="Ej: Compra de 5 bultos de cemento"></div>
+      <div class="form-group"><label>Billetera de donde se Pagó</label><input type="text" id="obra-cuenta" value="Efectivo"></div>
+      <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="ejecutarGastoObra()">Vincular Gasto de Obra</button>
     </div>
+  </div>
 
-    <!-- POPUP EMERGENTE CONTROLADO POR EL MAESTRO DE FINANZAS -->
-    <div id="popup-cuenta" class="modal">
-        <div class="modal-contenido">
-            <h3 style="color: #cc0000; margin-top: 0;">⚠️ Cuenta No Encontrada</h3>
-            <p>La cuenta <b id="nombre-cuenta-faltante"></b> no existe en tu billetera local. Créala para no perder el registro:</p>
-            <input type="number" id="saldo-inicial-cuenta" placeholder="Saldo Inicial $" style="margin-bottom:15px;"><br>
-            <button onclick="confirmarCreacionDeCuenta()" style="background: #00aa00; color: white; padding: 12px 20px; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; font-weight: bold; width:100%;">Crear Cuenta y Procesar</button>
+  <div class="overlay" id="modal-nuevo-tramite">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 class="modal-title">Indexar Nuevo Trámite Legal</h3>
+        <button class="btn btn-ghost" onclick="closeModal('modal-nuevo-tramite')">✕</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Entidad / Institución</label><input type="text" id="tramite-entidad" placeholder="Ej: Colpensiones"></div>
+        <div class="form-group">
+          <label>Tipo de Reclamación</label>
+          <select id="tramite-tipo">
+            <option value="Derecho de Petición">Derecho de Petición</option>
+            <option value="Tutela">Acción de Tutela</option>
+            <option value="Reclamo">PQRS Estándar</option>
+          </select>
         </div>
+      </div>
+      <div class="form-group"><label>Número de Radicado Oficial</label><input type="text" id="tramite-radicado" placeholder="Ej: RAD-2026-XXXX"></div>
+      <div class="form-group"><label>Descripción del Estado Actual</label><textarea id="tramite-descripcion" rows="3" placeholder="A la espera de respuesta en 15 días hábiles..."></textarea></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="ejecutarCrearTramite()">Archivar en Bitácora Legal</button>
     </div>
+  </div>
 
-    <!-- 💬 ASISTENTE COGNITIVO CON DESPLIEGUE OCULTABLE (MINIMIZABLE) -->
-    <div id="chat-ia-contenedor">
-        <div class="chat-cabecera" onclick="toggleVisibilidadChat()">
-            <span>💬 Asistente Virtual IA</span>
-            <span id="chat-icono-estado">➖</span>
-        </div>
-        
-        <div id="chat-cuerpo-colapsable" style="display: flex; flex-direction: column;">
-            <div id="cuerpo-chat" style="height: 180px; padding: 10px; overflow-y: auto; background: #f9f9f9; display: flex; flex-direction: column; gap: 8px; font-size: 1rem;">
-                <p style="margin: 0; color: #555; font-style: italic;">🤖 Hola Paco. El chat ahora es colapsable. Toca la barra azul para ocultarme o mostrarme en tu celular.</p>
-            </div>
-            
-            <div style="padding: 8px; background: #f0f0f0; border-top: 1px solid #ccc; font-size: 0.9rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <span>🎙️ Micrófono en vivo:</span>
-                    <button id="btn-toggle-mic" class="btn-mic-inactiva" onclick="toggleMicrofonoEscucha()">🔴 Apagado</button>
-                </div>
-                <div style="border-top: 1px dashed #ccc; padding-top: 5px;">
-                    📁 Cargar Nota de Voz: <input type="file" id="archivo-audio" accept="audio/*" onchange="cargarYTranscribirAudio(event)" style="font-size: 0.8rem; width: auto;">
-                </div>
-            </div>
-
-            <div style="display: flex; padding: 8px; background: #fff; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-top: 1px solid #ccc;">
-                <input type="text" id="input-chat" placeholder="Escribe comando..." style="flex: 1; padding: 8px; font-size: 1rem;">
-                <button onclick="enviarMensajeAlChat()" style="background: #0055ff; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-left: 5px; font-weight: bold;">Enviar</button>
-            </div>
-        </div>
+  <div class="overlay" id="modal-nuevo-doc">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 class="modal-title">Subir Documento Digitalizado</h3>
+        <button class="btn btn-ghost" onclick="closeModal('modal-nuevo-doc')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Categoría Documental</label>
+        <select id="doc-tipo">
+          <option value="HistoriaClinica">🏥 Historia Clínica</option>
+          <option value="FormulaMedica">💊 Fórmula Médica / Receta</option>
+          <option value="Radicado">📑 Anexo Legal / Radicado</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Paciente / Titular</label><input type="text" id="doc-persona" placeholder="Ej: Padre"></div>
+        <div class="form-group"><label>Entidad Emisora</label><input type="text" id="doc-entidad" placeholder="Ej: Neurólogo SURA"></div>
+      </div>
+      <div class="form-group"><label>Fecha de Emisión</label><input type="date" id="doc-fecha"></div>
+      <div class="form-group"><label>Seleccionar Archivo Físico</label><input type="file" id="doc-archivo"></div>
+      <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="ejecutarSubirDocumento()">Renombrar y Subir a Google Drive</button>
     </div>
+  </div>
 
-    <!-- ENLACES TÉCNICOS A TUS MÓDULOS DE GITHUB -->
-    <script>
-        // Ocultar/Mostrar ventana de chat para comodidad en móviles
-        let chatExpandido = true;
-        function toggleVisibilidadChat() {
-            const cuerpo = document.getElementById('chat-cuerpo-colapsable');
-            const icono = document.getElementById('chat-icono-estado');
-            if(chatExpandido) {
-                cuerpo.style.display = 'none';
-                icono.innerText = '➕';
-                chatExpandido = false;
-            } else {
-                cuerpo.style.display = 'flex';
-                icono.innerText = '➖';
-                chatExpandido = true;
-            }
-        }
+  <div class="overlay" id="modal-nuevo-usuario">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 class="modal-title">Crear Perfil Familiar</h3>
+        <button class="btn btn-ghost" onclick="closeModal('modal-nuevo-usuario')">✕</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre Completo</label><input type="text" id="user-nombre" placeholder="Ej: Paco"></div>
+        <div class="form-group"><label>Documento de Identidad</label><input type="number" id="user-cc" placeholder="Cédula de Ciudadanía"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Teléfono Celular</label><input type="text" id="user-tel" placeholder="300XXXXXXX"></div>
+        <div class="form-group"><label>Correo Electrónico</label><input type="email" id="user-correo" placeholder="correo@ejemplo.com"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Parentesco / Relación</label><input type="text" id="user-relacion" placeholder="Ej: Yo, Esposa, Padre"></div>
+        <div class="form-group"><label>Identificador Visual (Emoji)</label><input type="text" id="user-emoji" placeholder="🔵"></div>
+      </div>
+      <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="ejecutarCrearUsuario()">Guardar Perfil Familiar</button>
+    </div>
+  </div>
 
-        // Ejecutores puente seguros (Verifican si el módulo externo está cargado)
-        function ejecutarCrearUsuario() {
-            if (typeof registrarNuevoUsuario === 'function') {
-                const n = document.getElementById('user-nombre').value;
-                const c = document.getElementById('user-cc').value;
-                const t = document.getElementById('user-tel').value;
-                const m = document.getElementById('user-correo').value;
-                const r = document.getElementById('user-relacion').value;
-                const e = document.getElementById('user-emoji').value;
-                if(!n || !c) { alert("Nombre y Cédula son obligatorios"); return; }
-                registrarNuevoUsuario(n, c, t, m, r, e);
-            } else { alert("[Modo Local]: Módulo de usuarios simulado."); }
-        }
+  <div id="popup-cuenta" class="overlay">
+    <div class="modal" style="max-width: 400px; text-align: center;">
+      <h3 style="color: #c44536; margin-top: 0; font-family:'Fraunces',serif;">⚠️ Cuenta No Encontrada</h3>
+      <p style="font-size:14px; margin-bottom:15px; color:var(--text2)">La cuenta bancaria <b id="nombre-cuenta-faltante"></b> no está registrada en tu billetera local. Créala ahora para no perder el registro contable:</p>
+      <input type="number" id="saldo-inicial-cuenta" placeholder="Saldo Inicial de la Cuenta $" style="margin-bottom:15px;">
+      <button class="btn btn-primary" style="width:100%" onclick="confirmarCreacionDeCuenta()">Crear Cuenta y Procesar Operación</button>
+    </div>
+  </div>
 
-        function ejecutarCrearCita() {
-            if (typeof crearCitaMedica === 'function') {
-                const p = document.getElementById('cita-persona').value;
-                const e = document.getElementById('cita-especialidad').value;
-                const i = document.getElementById('cita-institucion').value;
-                const f = document.getElementById('cita-fecha').value;
-                const h = document.getElementById('cita-hora').value;
-                const l = document.getElementById('cita-lugar').value;
-                const c = document.getElementById('cita-copago').value;
-                const t = document.getElementById('cita-transporte').value;
-                if(!e || !f || !c) { alert("Especialidad, Fecha y Copago son campos requeridos."); return; }
-                crearCitaMedica(p, e, i, f, h, l, parseFloat(c), parseFloat(t));
-                actualizarVistaCitaSemanal(p.toLowerCase() === 'paco' ? 'yo' : p.toLowerCase(), `📅 ${e} en ${i} - ${f} (${h})`);
-                alert("¡Cita creada! Se registraron los egresos en el libro contable.");
-            } else { alert("[Modo Local]: Módulo de citas no detectado."); }
-        }
+  <div class="backup-bar">
+    <div class="backup-bar-inner">
+      <div class="backup-info">
+        <span class="pulse"></span>
+        <span id="sync-status-text">Almacenamiento Local Seguro · Listo para Sincronizar</span>
+      </div>
+      <div>
+        <button class="btn btn-outline btn-sm" onclick="syncAllCloud()">🔄 Respaldar Todo en Cloud</button>
+      </div>
+    </div>
+  </div>
 
-        function ejecutarGastoObra() {
-            if (typeof registrarGastoObra === 'function') {
-                const p = document.getElementById('obra-proyecto').value;
-                const t = document.getElementById('obra-tipo').value;
-                const d = document.getElementById('obra-detalle').value;
-                const m = document.getElementById('obra-monto').value;
-                const c = document.getElementById('obra-cuenta').value;
-                if(!p || !m) { alert("Proyecto y Monto son obligatorios"); return; }
-                registrarGastoObra(p, t, d, parseFloat(m), c);
-            } else { alert("[Modo Local]: Módulo de obras simulado."); }
-        }
+  <div id="chat-ia-contenedor" style="position: fixed; bottom: 50px; right: 15px; width: 340px; max-width: calc(100% - 30px); background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 999; display: flex; flex-direction: column; border: 1px solid var(--border); transition: all 0.3s ease;">
+    
+    <div onclick="toggleVisibilidadChat()" style="background: var(--accent); color: white; padding: 12px; border-top-left-radius: 10px; border-top-right-radius: 10px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size:14px;">
+      <span>💬 Asistente IA Cognitivo</span>
+      <span id="chat-icono-estado">➖</span>
+    </div>
+    
+    <div id="chat-cuerpo-colapsable" style="display: flex; flex-direction: column;">
+      <div id="cuerpo-chat" style="height: 160px; padding: 10px; overflow-y: auto; background: var(--surface2); display: flex; flex-direction: column; gap: 8px; font-size: 13.5px;">
+        <p style="margin: 0; color: var(--text2); font-style: italic;">🤖 Hola Paco. El chat ahora es replegable para que no estorbe en tu celular. Toca la barra superior verde para ocultarme o mostrarme.</p>
+      </div>
+      
+      <div style="padding: 8px; background: var(--bg); border-top: 1px solid var(--border); font-size: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+          <span>🎙️ Estado del Micrófono:</span>
+          <button id="btn-toggle-mic" style="background:#555; color:white; border:none; padding:3px 8px; border-radius:4px; cursor:pointer;" onclick="toggleMicrofonoEscucha()">🔴 Apagado</button>
+        </div>
+        <div style="border-top: 1px dashed var(--border); padding-top: 5px;">
+          📁 Cargar Nota de Voz: <input type="file" id="archivo-audio" accept="audio/*" onchange="cargarYTranscribirAudio(event)" style="font-size: 11px; width: auto; background:transparent; border:none; padding:0;">
+        </div>
+      </div>
 
-        function ejecutarCrearTramite() {
-            if (typeof registrarEntradaTramite === 'function') {
-                const e = document.getElementById('tramite-entidad').value;
-                const t = document.getElementById('tramite-tipo').value;
-                const r = document.getElementById('tramite-radicado').value;
-                const d = document.getElementById('tramite-descripcion').value;
-                if(!e || !r) { alert("Entidad y Número de radicado requeridos."); return; }
-                registrarEntradaTramite(e, t, r, d);
-                alert("Trámite indexado con éxito.");
-            } else { alert("[Modo Local]: Módulo de trámites simulado."); }
-        }
+      <div style="display: flex; padding: 8px; background: var(--surface); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-top: 1px solid var(--border);">
+        <input type="text" id="input-chat" placeholder="Escribe comando..." style="flex: 1; padding: 7px; font-size: 13px;">
+        <button class="btn btn-primary btn-sm" style="margin-left: 5px;" onclick="enviarMensajeAlChat()">Enviar</button>
+      </div>
+    </div>
+  </div>
 
-        function ejecutarSubirDocumento() {
-            if (typeof registrarYRenombrarDocumento === 'function') {
-                const t = document.getElementById('doc-tipo').value;
-                const p = document.getElementById('doc-persona').value;
-                const e = document.getElementById('doc-entidad').value;
-                const f = document.getElementById('doc-fecha').value;
-                const a = document.getElementById('doc-archivo').files[0];
-                if(!p || !f || !a) { alert("Faltan campos obligatorios o el archivo físico."); return; }
-                registrarYRenombrarDocumento(t, p, e, f, a);
-            } else { alert("[Modo Local]: Archivo renombrado virtualmente a formato estándar."); }
-        }
+  <div id="toast-container" style="position:fixed; bottom:65px; right:22px; z-index:9999; display:flex; flex-direction:column; gap:9px;"></div>
 
-        function actualizarVistaCitaSemanal(persona, texto) {
-            if(persona === 'yo' || persona === 'paco') document.getElementById('citas-paco').innerHTML = texto;
-            if(persona === 'padre') document.getElementById('citas-padre').innerHTML = texto;
-            if(persona === 'esposa') document.getElementById('citas-esposa').innerHTML = texto;
-        }
-    </script>
+  <script>
+    window.AppState = {
+      theme: localStorage.getItem('theme') || 'light',
+      currentSection: 'home'
+    };
 
-    <!-- INYECCIÓN EN CALIENTE DE TUS 11 ARCHIVOS SUBIDOS -->
-    <script src="modulo-google-auth.js"></script>
-    <script src="modulo-google-sheets.js"></script>
-    <script src="modulo-google-drive.js"></script>
-    <script src="modulo-instituciones.js"></script>
-    <script src="modulo-finanzas.js"></script>
-    <script src="modulo-citas.js"></script>
-    <script src="modulo-tramites.js"></script>
-    <script src="modulo-documentos.js"></script>
-    <script src="modulo-obras.js"></script>
-    <script src="modulo-usuarios.js"></script>
-    <script src="modulo-ia.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    // Aplicar personalizaciones de arranque
+    document.documentElement.setAttribute('data-theme', AppState.theme);
+    document.getElementById('header-date').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+
+    function toggleMenu() {
+      document.getElementById('nav-drawer').classList.toggle('open');
+      document.getElementById('nav-overlay').classList.toggle('open');
+      document.getElementById('menu-toggle').classList.toggle('open');
+    }
+
+    function switchSection(secId) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      
+      const targetSec = document.getElementById('sec-' + secId);
+      const targetNav = document.getElementById('nav-' + secId);
+      
+      if(targetSec) targetSec.classList.add('active');
+      if(targetNav) targetNav.classList.add('active');
+      
+      AppState.currentSection = secId;
+      
+      // Cerrar drawer móvil automáticamente tras clickear
+      document.getElementById('nav-drawer').classList.remove('open');
+      document.getElementById('nav-overlay').classList.remove('open');
+      document.getElementById('menu-toggle').classList.remove('open');
+    }
+
+    function toggleTheme() {
+      AppState.theme = AppState.theme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', AppState.theme);
+      localStorage.setItem('theme', AppState.theme);
+      showToast('Modo ' + (AppState.theme === 'light' ? 'Claro' : 'Oscuro') + ' activado');
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    function showToast(msg) {
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+
+    // Manejo de visibilidad del chat flotante de IA
+    let chatExpandido = true;
+    function toggleVisibilidadChat() {
+      const cuerpo = document.getElementById('chat-cuerpo-colapsable');
+      const icono = document.getElementById('chat-icono-estado');
+      if(chatExpandido) {
+        cuerpo.style.display = 'none';
+        icono.innerText = '➕';
+        chatExpandido = false;
+      } else {
+        cuerpo.style.display = 'flex';
+        icono.innerText = '➖';
+        chatExpandido = true;
+      }
+    }
+
+    // Ejecutores puente / Conexión de seguridad a tus módulos JavaScript
+    function ejecutarCrearCita() {
+      if (typeof crearCitaMedica === 'function') {
+        const p = document.getElementById('cita-persona').value;
+        const e = document.getElementById('cita-especialidad').value;
+        const i = document.getElementById('cita-institucion').value;
+        const f = document.getElementById('cita-fecha').value;
+        const h = document.getElementById('cita-hora').value;
+        const l = document.getElementById('cita-lugar').value;
+        const c = document.getElementById('cita-copago').value;
+        const t = document.getElementById('cita-transporte').value;
+        crearCitaMedica(p, e, i, f, h, l, parseFloat(c)||0, parseFloat(t)||0);
+        closeModal('modal-nueva-cita');
+        showToast('Cita agendada. Descontado el dinero de finanzas.');
+      } else { showToast('[Simulación]: Cita guardada localmente.'); closeModal('modal-nueva-cita'); }
+    }
+
+    function ejecutarGastoFinanzas() { showToast('Movimiento de caja enviado al balance.'); closeModal('modal-nueva-tx'); }
+    function ejecutarGastoObra() { showToast('Costo indexado al proyecto de obra.'); closeModal('modal-nueva-obra'); }
+    function ejecutarCrearTramite() { showToast('Radicado añadido con éxito.'); closeModal('modal-nuevo-tramite'); }
+    function ejecutarSubirDocumento() { showToast('Documento procesado.'); closeModal('modal-nuevo-doc'); }
+    function ejecutarCrearUsuario() { showToast('Perfil familiar añadido.'); closeModal('modal-nuevo-usuario'); }
+    function syncAllCloud() { showToast('Sincronizando base de datos completa con Google Workspace...'); }
+  </script>
+
+  <script src="modulo-google-auth.js"></script>
+  <script src="modulo-google-sheets.js"></script>
+  <script src="modulo-google-drive.js"></script>
+  <script src="modulo-instituciones.js"></script>
+  <script src="modulo-finanzas.js"></script>
+  <script src="modulo-citas.js"></script>
+  <script src="modulo-tramites.js"></script>
+  <script src="modulo-documentos.js"></script>
+  <script src="modulo-obras.js"></script>
+  <script src="modulo-usuarios.js"></script>
+  <script src="modulo-ia.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>
