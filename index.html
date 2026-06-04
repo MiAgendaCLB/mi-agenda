@@ -10,6 +10,7 @@
 </head>
 <body>
 
+  <!-- ══ ENCABEZADO FIJO (HEADER) ══ -->
   <header>
     <div class="header-inner">
       <button class="hamburger-btn" id="menu-toggle" onclick="toggleMenu()">
@@ -25,11 +26,12 @@
     </div>
   </header>
 
+  <!-- ══ MENÚ LATERAL DESLIZABLE (DRAWER) ══ -->
   <div class="nav-overlay" id="nav-overlay" onclick="toggleMenu()"></div>
   <div class="nav-drawer" id="nav-drawer">
     <div class="nav-drawer-header">
       <div class="nav-drawer-logo">Menú Agenda</div>
-      <div class="nav-drawer-date">Estructura Modular v8.1</div>
+      <div class="nav-drawer-date">Estructura Modular v8.5</div>
     </div>
     <div class="nav-drawer-body">
       <button class="nav-btn active" id="nav-home" onclick="switchSection('home')"><span class="nav-icon">🏠</span> Inicio / Hoy</button>
@@ -40,16 +42,55 @@
     </div>
   </div>
 
+  <!-- ══ CONTENEDOR PRINCIPAL ══ -->
   <main>
     
+    <!-- MÓDULO DEFAULT: INICIO / PANTALLA HOY (REDISEÑO FIEL A IMAGE_22A8E0.PNG) -->
     <section id="sec-home" class="section active">
-      <div class="page-header">
-        <h1 class="page-title">Panel de Control</h1>
-        <button class="btn btn-primary btn-sm" onclick="showToast('🎙️ Escuchando dictado...')">🎙️ Dictado Rápido</button>
+      <div class="page-header" style="margin-bottom: 10px;">
+        <h1 class="page-title" id="home-greeting" style="font-family:'Fraunces', serif; font-size: 28px;">Buenas tardes 🌟</h1>
       </div>
-      <div id="modo-hoy-panel"></div>
+      
+      <!-- Banner Proactivo Inteligente ("El sistema habla primero") -->
+      <div id="home-proactive-banner"></div>
+
+      <!-- Fila de 5 Tarjetas Estadísticas Estilo image_22a8e0.png -->
+      <div class="stats-grid-image" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 25px;">
+        <div class="card stat-box" style="text-align: center; padding: 15px;">
+          <div class="stat-value" id="stat-citas-por-tomar" style="font-size: 24px; font-weight: bold; color: #2d6a4f;">0</div>
+          <div class="stat-label" style="font-size: 11px; color: var(--text3); margin-top: 5px;">Citas por tomar</div>
+        </div>
+        <div class="card stat-box" style="text-align: center; padding: 15px;">
+          <div class="stat-value" id="stat-tramites-activos" style="font-size: 24px; font-weight: bold; color: #1d3557;">0</div>
+          <div class="stat-label" style="font-size: 11px; color: var(--text3); margin-top: 5px;">Trámites activos</div>
+        </div>
+        <div class="card stat-box" style="text-align: center; padding: 15px;">
+          <div class="stat-value" id="stat-saldo-cuentas" style="font-size: 20px; font-weight: bold; color: #b45309;">$0</div>
+          <div class="stat-label" style="font-size: 11px; color: var(--text3); margin-top: 5px;">Saldo en cuentas</div>
+        </div>
+        <div class="card stat-box" style="text-align: center; padding: 15px;">
+          <div class="stat-value" id="stat-citas-hoy" style="font-size: 24px; font-weight: bold; color: #0055ff;">0</div>
+          <div class="stat-label" style="font-size: 11px; color: var(--text3); margin-top: 5px;">Citas hoy</div>
+        </div>
+        <div class="card stat-box" style="text-align: center; padding: 15px;">
+          <div class="stat-value" id="stat-egresos-mes" style="font-size: 20px; font-weight: bold; color: #c44536;">$0</div>
+          <div class="stat-label" style="font-size: 11px; color: var(--text3); margin-top: 5px;">Egresos del mes</div>
+        </div>
+      </div>
+
+      <!-- Navegador Semanal Dinámico con Flechas -->
+      <div class="weekly-navigator" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: var(--surface); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border);">
+        <button class="btn btn-outline btn-sm" onclick="navegarSemana(-1)">◀ Ant.</button>
+        <span id="weekly-range-label" style="font-weight: 600; font-size: 14px; color: var(--text1);">Semana Actual</span>
+        <button class="btn btn-outline btn-sm" onclick="navegarSemana(1)">Sig. ▶</button>
+      </div>
+
+      <!-- Listados de la Semana Seleccionada -->
+      <h2 style="font-family:'Fraunces', serif; font-size: 20px; margin-bottom: 12px; color: var(--text1);">Planificación de la Semana</h2>
+      <div id="home-weekly-agenda" style="display: flex; flex-direction: column; gap: 10px;"></div>
     </section>
 
+    <!-- MÓDULO 1: CITAS MÉDICAS -->
     <section id="sec-citas" class="section">
       <div class="page-header">
         <h1 class="page-title">Gestión de Citas</h1>
@@ -63,6 +104,7 @@
       <div id="citas-list"></div>
     </section>
 
+    <!-- MÓDULO 2: FINANZAS -->
     <section id="sec-finanzas" class="section">
       <div class="page-header">
         <h1 class="page-title">Billetera y Flujos de Caja</h1>
@@ -94,6 +136,7 @@
       <div style="margin-top:20px;" id="tx-history-container"></div>
     </section>
 
+    <!-- MÓDULO 3: CONTROL DE OBRAS -->
     <section id="sec-obras" class="section">
       <div class="page-header">
         <h1 class="page-title">Proyectos de Construcción</h1>
@@ -105,6 +148,7 @@
       <div id="obras-container"></div>
     </section>
 
+    <!-- MÓDULO 4: ARCHIVO DIGITAL -->
     <section id="sec-documentos" class="section">
       <div class="page-header">
         <h1 class="page-title">Archivo Digital Automático</h1>
@@ -115,13 +159,15 @@
 
   </main>
 
+  <!-- ══ POPUP: AGENDAR / MODIFICAR CITA MÉDICA ══ -->
   <div class="overlay" id="modal-nueva-cita">
     <div class="modal">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h3 class="modal-title">Agendar Nueva Cita Médica</h3>
+        <h3 class="modal-title" id="cita-modal-title">Agendar Nueva Cita Médica</h3>
         <button class="btn btn-ghost" onclick="closeModal('modal-nueva-cita')">✕</button>
       </div>
       <form id="form-cita" onsubmit="event.preventDefault();">
+        <input type="hidden" id="cita-id-edicion" value="">
         <div class="form-group">
           <label>Paciente / Titular</label>
           <select id="cita-persona">
@@ -143,7 +189,7 @@
         <div class="form-row">
           <div class="form-group"><label>Fecha</label><input type="date" id="cita-fecha" required></div>
           <div class="form-group">
-            <label>Hora (Formato Simplificado)</label>
+            <label>Hora</label>
             <div style="display:flex; gap:4px;">
               <select id="cita-hora-hh" style="flex:1;"></select>
               <select id="cita-hora-mm" style="flex:1;"></select>
@@ -159,11 +205,16 @@
           <div class="form-group"><label>Valor Copago ($)</label><input type="number" id="cita-copago" value="0"></div>
           <div class="form-group"><label>Transporte Asignado ($)</label><input type="number" id="cita-transporte" value="0"></div>
         </div>
-        <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="ejecutarCrearCitaReal()">Agendar y Vincular Contabilidad</button>
+        
+        <div style="display:flex; gap:8px; margin-top:15px;">
+          <button type="button" class="btn btn-danger" id="btn-eliminar-cita-modal" style="display:none; flex:1;" onclick="ejecutarEliminacionDesdeModal()">Eliminar Cita</button>
+          <button type="button" class="btn btn-primary" id="btn-guardar-cita-modal" style="flex:2;" onclick="ejecutarCrearCitaReal()">Agendar e Indexar Caja</button>
+        </div>
       </form>
     </div>
   </div>
 
+  <!-- ══ POPUP: MOVIMIENTO FINANCIERO ══ -->
   <div class="overlay" id="modal-nueva-tx">
     <div class="modal">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -202,6 +253,7 @@
     </div>
   </div>
 
+  <!-- ══ POPUP: NUEVO PROYECTO / REGISTRAR GASTO DE OBRA ══ -->
   <div class="overlay" id="modal-nueva-obra">
     <div class="modal">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -215,7 +267,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Responsable de Ejecución</label>
+            <label>Responsable de Execution</label>
             <input type="text" id="obra-responsable" placeholder="Ej: Maestro Carlos" required>
           </div>
           <div class="form-group">
@@ -236,6 +288,7 @@
     </div>
   </div>
 
+  <!-- ══ POPUP: REGISTRAR COTIZACIÓN DE OBRA ══ -->
   <div class="overlay" id="modal-nueva-cotizacion">
     <div class="modal" style="max-width:400px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -251,6 +304,7 @@
     </div>
   </div>
 
+  <!-- ══ POPUP: CARGA DE DOCUMENTOS AUTOMÁTICA ══ -->
   <div class="overlay" id="modal-nuevo-doc">
     <div class="modal">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -291,6 +345,7 @@
     </div>
   </div>
 
+  <!-- ══ MINI POPUPS DE CREACIÓN DINÁMICA SOBRE LA MARCHA ══ -->
   <div id="popup-auxiliar" class="overlay" style="z-index:10000;">
     <div class="modal" style="max-width: 320px; text-align: center;">
       <h3 id="aux-titulo" style="margin-top:0; font-family:'Fraunces',serif;">Añadir Registro</h3>
@@ -299,17 +354,23 @@
     </div>
   </div>
 
+  <!-- BARRA DE BACKUP INFERIOR -->
   <div class="backup-bar">
     <div class="backup-bar-inner">
-      <div class="backup-info"><span class="pulse"></span> <span>Almacenamiento Local Seguro Real-Time v8.1</span></div>
+      <div class="backup-info"><span class="pulse"></span> <span>Almacenamiento Local Seguro Real-Time v8.5</span></div>
       <button class="btn btn-outline btn-sm" onclick="showToast('Sincronizado completo con Cloud Workspace.')">🔄 Sincronizar</button>
     </div>
   </div>
 
   <div id="toast-container" style="position:fixed; bottom:65px; right:22px; z-index:9999; display:flex; flex-direction:column; gap:9px;"></div>
 
+  <!-- NAVEGACIÓN BASE -->
   <script>
-    window.AppState = { theme: localStorage.getItem('theme') || 'light', currentSection: 'home' };
+    window.AppState = { 
+      theme: localStorage.getItem('theme') || 'light', 
+      currentSection: 'home',
+      fechaBaseSemana: new Date() // Control centralizado para la navegación de semanas
+    };
     document.documentElement.setAttribute('data-theme', AppState.theme);
     document.getElementById('header-date').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
     
@@ -323,6 +384,9 @@
       if(document.getElementById('sec-'+secId)) document.getElementById('sec-'+secId).classList.add('active');
       if(document.getElementById('nav-'+secId)) document.getElementById('nav-'+secId).classList.add('active');
       toggleMenu();
+      if(secId === 'home' && typeof renderPantallaHoyCompleta === 'function') {
+        renderPantallaHoyCompleta();
+      }
     }
     function openModal(id) { document.getElementById(id).classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -338,6 +402,7 @@
     }
   </script>
 
+  <!-- LISTA DE MÓDULOS -->
   <script src="modulo-google-auth.js"></script>
   <script src="modulo-google-sheets.js"></script>
   <script src="modulo-google-drive.js"></script>
