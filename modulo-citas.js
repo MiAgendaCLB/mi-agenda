@@ -1,162 +1,172 @@
 /* ==========================================================================
-   MODULO-CITAS.JS - GESTIÓN DE CITAS MÉDICAS Y LOGÍSTICA V8
+   MODULO-CITAS.JS - ECO-SISTEMA DE CITAS MÉDICAS AVANZADAS V8.1
    ========================================================================== */
 
-// Inicializar el estado local si no existe
 if (!window.AppState) window.AppState = {};
-if (!window.AppState.citas) {
-  window.AppState.citas = JSON.parse(localStorage.getItem('agenda_citas')) || [];
-}
+if (!window.AppState.citas) window.AppState.citas = JSON.parse(localStorage.getItem('agenda_citas')) || [];
 
-// Cargar las citas al iniciar la aplicación
+// Listas maestras iniciales autogestionables
+let especialidadesMaestras = JSON.parse(localStorage.getItem('maestro_especialidades')) || ['Cardiología', 'Neurología', 'Psicología', 'Medicina General'];
+let institucionesMaestras = JSON.parse(localStorage.getItem('maestro_instituciones')) || ['IPS SURA', 'Oportunidad de Vida', 'Neurólogos de Occidente'];
+
 document.addEventListener('DOMContentLoaded', () => {
+  inicializarSelectoresCitas();
   renderCitas();
   actualizarResumenSemanalCitas();
 });
 
-// Función Principal: Crear una nueva cita médica
-function crearCitaMedica(paciente, especialidad, institucion, fecha, hora, lugar, copago, transporte) {
+function inicializarSelectoresCitas() {
+  // Configurar las 12 horas
+  const hh = document.getElementById('cita-hora-hh');
+  if(hh) {
+    hh.innerHTML = Array.from({length: 12}, (_, i) => `<option value="${i+1}">${String(i+1).padStart(2,'0')}</option>`).join('');
+  }
+  // Configurar minutos de 15 en 15 para simplificar
+  const mm = document.getElementById('cita-hora-mm');
+  if(mm) {
+    mm.innerHTML = ['00', '15', '30', '45'].map(m => `<option value="${m}">${m}</option>`).join('');
+  }
+  actualizarSelectsMedicos();
+}
+
+function actualizarSelectsMedicos() {
+  const selEsp = document.getElementById('cita-especialidad');
+  const selIns = document.getElementById('cita-institucion');
+  
+  if(selEsp) {
+    selEsp.innerHTML = especialidadesMaestras.map(e => `<option value="${e}">${e}</option>`).join('') + `<option value="NUEVO">➕ Crear nueva...</option>`;
+  }
+  if(selIns) {
+    selIns.innerHTML = institucionesMaestras.map(i => `<option value="${i}">${i}</option>`).join('') + `<option value="NUEVO">➕ Crear nueva...</option>`;
+  }
+}
+
+// Interceptor de creación sobre la marcha
+function verificarNuevoDatoMedico(selectElement, tipo) {
+  if (selectElement.value === 'NUEVO') {
+    const popup = document.getElementById('popup-auxiliar');
+    const titulo = document.getElementById('aux-titulo');
+    const input = document.getElementById('aux-input');
+    const btn = document.getElementById('aux-btn-confirmar');
+    
+    titulo.textContent = tipo === 'especialidad' ? 'Nueva Especialidad' : 'Nueva IPS / Institución';
+    input.value = '';
+    popup.classList.add('open');
+    
+    btn.onclick = () => {
+      const valor = input.value.trim();
+      if(valor) {
+        if(tipo === 'especialidad') {
+          especialidadesMaestras.push(valor);
+          localStorage.setItem('maestro_especialidades', JSON.stringify(especialidadesMaestras));
+        } else {
+          institucionesMaestras.push(valor);
+          localStorage.setItem('maestro_instituciones', JSON.stringify(institucionesMaestras));
+        }
+        actualizarSelectsMedicos();
+        selectElement.value = valor;
+        popup.classList.remove('open');
+        if (typeof actualizarSelectsEnDocumentos === 'function') actualizarSelectsEnDocumentos();
+      }
+    };
+  }
+}
+
+function abrirModalCita() {
+  document.getElementById('form-cita').reset();
+  inicializarSelectoresCitas();
+  openModal('modal-nueva-cita');
+}
+
+function ejecutarCrearCitaReal() {
+  const paciente = document.getElementById('cita-persona').value;
+  const especialidad = document.getElementById('cita-especialidad').value;
+  const institucion = document.getElementById('cita-institucion').value;
+  const fecha = document.getElementById('cita-fecha').value;
+  
+  const hh = document.getElementById('cita-hora-hh').value;
+  const mm = document.getElementById('cita-hora-mm').value;
+  const ampm = document.getElementById('cita-hora-ampm').value;
+  const horaConstruida = `${hh}:${mm} ${ampm}`;
+
+  const lugar = document.getElementById('cita-lugar').value.trim() || 'No especificado';
+  const copago = parseFloat(document.getElementById('cita-copago').value) || 0;
+  const transporte = parseFloat(document.getElementById('cita-transporte').value) || 0;
+
+  if(!fecha || especialidad === 'NUEVO' || institucion === 'NUEVO') {
+    alert('Por favor ingresa todos los parámetros obligatorios.');
+    return;
+  }
+
   const nuevaCita = {
     id: 'cita_' + Date.now(),
-    paciente,
-    especialidad: especialidad || 'Consulta General',
-    institucion: institucion || 'IPS',
-    fecha: fecha || new Date().toISOString().split('T')[0],
-    hora: hora || '00:00',
-    lugar: lugar || 'No especificado',
-    copago: parseFloat(copago) || 0,
-    transporte: parseFloat(transporte) || 0,
-    estado: 'portomar' // Estados: portomar, tomada, reprogramada, cancelada
+    paciente, especialidad, institucion, fecha, hora: horaConstruida, lugar, copago, transporte, estado: 'portomar'
   };
 
   window.AppState.citas.push(nuevaCita);
-  guardarCitasEnStorage();
-  
-  // PUENTE AUTOMÁTICO: Si hay gastos asociados, los envía al módulo de finanzas de inmediato
-  const gastoTotal = nuevaCita.copago + nuevaCita.transporte;
-  if (gastoTotal > 0 && typeof registrarGastoDesdeModulo === 'function') {
-    registrarGastoDesdeModulo(
-      gastoTotal, 
-      `Logística Médica: ${nuevaCita.especialidad} (${nuevaCita.paciente})`, 
-      'Efectivo'
-    );
+  localStorage.setItem('agenda_citas', JSON.stringify(window.AppState.citas));
+
+  // Descuento automático cruzado en finanzas
+  const totalLogistica = copago + transporte;
+  if(totalLogistica > 0 && typeof registrarGastoDesdeModulo === 'function') {
+    registrarGastoDesdeModulo(totalLogistica, `Gastos Médicos: ${especialidad} - ${paciente}`, 'Efectivo', '💊 Logística Médica');
   }
 
+  document.getElementById('form-cita').reset(); // Limpieza absoluta contra duplicaciones
+  closeModal('modal-nueva-cita');
   renderCitas();
   actualizarResumenSemanalCitas();
-  if (typeof renderModoHoy === 'function') renderModoHoy();
+  if (typeof actualizarSelectsEnDocumentos === 'function') actualizarSelectsEnDocumentos();
+  showToast('Cita guardada y procesada contablemente.');
 }
 
-// Renderizar la lista de tarjetas de citas con diseño V8
 function renderCitas() {
   const container = document.getElementById('citas-list');
   if (!container) return;
 
   if (window.AppState.citas.length === 0) {
-    container.innerHTML = `
-      <div style="text-align:center; padding:30px; color:var(--text2); font-size:14px;">
-        📸 No tienes citas médicas programadas en el historial.
-      </div>`;
+    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text3);">No hay citas registradas.</div>`;
     return;
   }
 
-  // Ordenar citas por fecha de la más cercana a la más lejana
-  const citasOrdenadas = [...window.AppState.citas].sort((a, b) => a.fecha.localeCompare(b.fecha));
-
-  container.innerHTML = citasOrdenadas.map(cita => {
-    // Determinar la clase de chip según el estado de la cita
-    let chipClass = 'chip-portomar';
-    let estadoTexto = 'Por Tomar';
-    if (cita.estado === 'tomada') { chipClass = 'chip-done'; estadoTexto = 'Tomada / Asistió'; }
-    if (cita.estado === 'reprogramada') { chipClass = 'chip-reprogramada'; estadoTexto = 'Reprogramada'; }
-    if (cita.estado === 'cancelada') { chipClass = 'chip-cancelada'; estadoTexto = 'Cancelada'; }
-
-    return `
-      <div class="card card-highlight" style="border-left-color: ${obtenerColorPaciente(cita.paciente)};">
-        <div style="display:flex; justify-content:between; align-items:start; gap:10px; flex-wrap:wrap;">
-          <div style="flex:1;">
-            <div style="font-family:'Fraunces',serif; font-size:18px; font-weight:700; color:var(--text)">
-              ${cita.especialidad}
-            </div>
-            <div class="card-meta">
-              <span>👤 <b>${cita.paciente}</b></span> · 
-              <span>🏥 ${cita.institucion}</span> · 
-              <span>📍 ${cita.lugar}</span>
-            </div>
-            <div class="card-meta" style="margin-top:4px; font-weight:500; color:var(--accent)">
-              📅 ${formatearFechaTexto(cita.fecha)} a las ⏰ ${cita.hora}
-            </div>
-            <div style="margin-top:8px; font-size:12px; color:var(--text3)">
-              Copago: $${cita.copago.toLocaleString()} | Transporte: $${cita.transporte.toLocaleString()}
-            </div>
-          </div>
-          <div>
-            <span class="chip ${chipClass}">${estadoTexto}</span>
-          </div>
+  const sorted = [...window.AppState.citas].sort((a,b) => a.fecha.localeCompare(b.fecha));
+  container.innerHTML = sorted.map(c => `
+    <div class="card card-highlight" style="border-left-color: ${c.paciente==='Paco'?'#0055ff':c.paciente==='Padre'?'#00aa00':'#ffcc00'}">
+      <div style="display:flex; justify-content:space-between; align-items:start;">
+        <div>
+          <span style="font-family:'Fraunces',serif; font-size:16px; font-weight:700;">${c.especialidad}</span> · <b>${c.paciente}</b>
+          <div style="font-size:12px; color:var(--text2); margin-top:4px;">🏥 ${c.institucion} | 📍 ${c.lugar}</div>
+          <div style="font-size:13px; font-weight:600; color:var(--accent); margin-top:4px;">📅 ${c.fecha} ⏰ ${c.hora}</div>
         </div>
-        
-        <div class="card-actions">
-          <button class="btn btn-outline btn-sm" onclick="cambiarEstadoCita('${cita.id}', 'tomada')">✓ Completada</button>
-          <button class="btn btn-ghost btn-sm" onclick="cambiarEstadoCita('${cita.id}', 'reprogramada')">🔄 Reprogramar</button>
-          <button class="btn btn-danger btn-sm" onclick="eliminarCitaMedica('${cita.id}')">🗑️ Eliminar</button>
-        </div>
+        <span class="chip ${c.estado==='tomada'?'chip-done':'chip-portomar'}">${c.estado==='tomada'?'Asistió':'Pendiente'}</span>
       </div>
-    `;
-  }).join('');
+      <div class="card-actions" style="margin-top:10px; justify-content:flex-end;">
+        ${c.estado!=='tomada'?`<button class="btn btn-outline btn-sm" onclick="cambiarEstadoCitaReal('${c.id}','tomada')">✓ Completada</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="eliminarCitaReal('${c.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
 }
 
-// Actualizar los 3 paneles superiores fijos del HTML según el paciente
-function actualizarResumenSemanalCitas() {
-  const pacoBox = document.getElementById('citas-paco');
-  const padreBox = document.getElementById('citas-padre');
-  const esposaBox = document.getElementById('citas-esposa');
-
-  if (pacoBox) pacoBox.textContent = obtenerProximaCitaTexto('Paco');
-  if (padreBox) padreBox.textContent = obtenerProximaCitaTexto('Padre');
-  if (esposaBox) esposaBox.textContent = obtenerProximaCitaTexto('Esposa');
+function cambiarEstadoCitaReal(id, est) {
+  const c = window.AppState.citas.find(x => x.id === id);
+  if(c) { c.estado = est; localStorage.setItem('agenda_citas', JSON.stringify(window.AppState.citas)); renderCitas(); }
 }
 
-// Helpers para el módulo de citas
-function obtenerProximaCitaTexto(paciente) {
-  const proximas = window.AppState.citas.filter(c => c.paciente === paciente && c.estado === 'portomar');
-  if (!proximas.length) return 'Sin citas pendientes';
-  const proxima = proximas.sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
-  return `${proxima.fecha} (${proxima.especialidad})`;
-}
-
-function obtenerColorPaciente(paciente) {
-  if (paciente === 'Paco') return '#0055ff';
-  if (paciente === 'Padre') return '#00aa00';
-  return '#ffcc00'; // Esposa
-}
-
-function cambiarEstadoCita(id, nuevoEstado) {
-  const cita = window.AppState.citas.find(c => c.id === id);
-  if (cita) {
-    cita.estado = nuevoEstado;
-    guardarCitasEnStorage();
-    renderCitas();
-    actualizarResumenSemanalCitas();
-  }
-}
-
-function eliminarCitaMedica(id) {
-  window.AppState.citas = window.AppState.citas.filter(c => c.id !== id);
-  guardarCitasEnStorage();
+function eliminarCitaReal(id) {
+  window.AppState.citas = window.AppState.citas.filter(x => x.id !== id);
+  localStorage.setItem('agenda_citas', JSON.stringify(window.AppState.citas));
   renderCitas();
   actualizarResumenSemanalCitas();
+  if (typeof actualizarSelectsEnDocumentos === 'function') actualizarSelectsEnDocumentos();
 }
 
-function guardarCitasEnStorage() {
-  localStorage.setItem('agenda_citas', JSON.stringify(window.AppState.citas));
+function actualizarResumenSemanalCitas() {
+  ['Paco', 'Padre', 'Esposa'].forEach(p => {
+    const el = document.getElementById('citas-' + p.toLowerCase());
+    if(el) {
+      const prox = window.AppState.citas.filter(c => c.paciente === p && c.estado === 'portomar').sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
+      el.textContent = prox ? `${prox.fecha} - ${prox.especialidad}` : 'Sin citas pendientes';
+    }
+  });
 }
-
-function formatearFechaTexto(f) {
-  if(!f) return '';
-  const partes = f.split('-');
-  if(partes.length !== 3) return f;
-  return `${partes[2]}/${partes[1]}/${partes[0]}`;
-}
-
-// Sobrescribir la función puente de ejecución del index.html para vincularla a este código real
-window.crearCitaMedica = crearCitaMedica;
