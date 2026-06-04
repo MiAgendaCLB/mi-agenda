@@ -1,185 +1,227 @@
 /* ==========================================================================
-   MODULO-FINANZAS.JS - CONTROL FINANCIERO, CUENTAS Y FLUJOS V8
+   MODULO-FINANZAS.JS - CORE FINANCIERO INTEGRAL CON DRILL-DOWN V8.1
    ========================================================================== */
 
 if (!window.AppState) window.AppState = {};
 if (!window.AppState.finanzas) {
   window.AppState.finanzas = JSON.parse(localStorage.getItem('agenda_finanzas')) || {
     cuentas: [
-      { id: 'c1', nombre: 'Efectivo', saldo: 150000, color: '#2d6a4f' },
-      { id: 'c2', nombre: 'Bancolombia', saldo: 2450000, color: '#1d3557' }
+      { id: 'c1', nombre: 'Efectivo', saldo: 500000, color: '#2d6a4f' },
+      { id: 'c2', nombre: 'Bancolombia', saldo: 1200000, color: '#1d3557' }
     ],
-    transacciones: [],
-    presupuestos: [
-      { id: 'b1', categoriaNombre: '🧱 Materiales Obra', limite: 1500000, consumido: 0 },
-      { id: 'b2', categoriaNombre: '💊 Logística Médica', limite: 400000, consumido: 0 }
-    ]
+    transacciones: []
   };
 }
+
+let filtroTipoActual = 'todos'; // Variable de control para el drill-down clínico
 
 document.addEventListener('DOMContentLoaded', () => {
   renderFinanzasCompleto();
 });
 
-// Función puente que llaman los otros módulos (como obras o citas) para restar o sumar dinero
-function registrarGastoDesdeModulo(monto, descripcion, nombreCuenta) {
+function abrirModalFinanzas() {
+  document.getElementById('form-finanzas').reset();
+  document.getElementById('tx-id-edicion').value = '';
+  document.getElementById('btn-guardar-tx').textContent = 'Confirmar Registro Permanente';
+  actualizarSelectCuentasContables();
+  openModal('modal-nueva-tx');
+}
+
+function actualizarSelectCuentasContables() {
+  const selects = ['tx-cuenta', 'obra-cuenta-pago'];
+  selects.forEach(sId => {
+    const el = document.getElementById(sId);
+    if(el) {
+      el.innerHTML = window.AppState.finanzas.cuentas.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('') + `<option value="NUEVO">➕ Crear nueva cuenta...</option>`;
+    }
+  });
+}
+
+function verificarNuevaCuentaBancaria(selectElement) {
+  if(selectElement.value === 'NUEVO') {
+    const popup = document.getElementById('popup-auxiliar');
+    const input = document.getElementById('aux-input');
+    document.getElementById('aux-titulo').textContent = 'Nueva Billetera / Cuenta';
+    input.value = '';
+    popup.classList.add('open');
+    
+    document.getElementById('aux-btn-confirmar').onclick = () => {
+      const v = input.value.trim();
+      if(v) {
+        window.AppState.finanzas.cuentas.push({ id: 'c_'+Date.now(), nombre: v, saldo: 0, color: '#b45309' });
+        localStorage.setItem('agenda_finanzas', JSON.stringify(window.AppState.finanzas));
+        actualizarSelectCuentasContables();
+        selectElement.value = v;
+        popup.classList.remove('open');
+        renderTarjetasCuentas();
+      }
+    };
+  }
+}
+
+function registrarGastoDesdeModulo(monto, desc, nombreCuenta, categoria) {
   let cuenta = window.AppState.finanzas.cuentas.find(c => c.nombre.toLowerCase() === nombreCuenta.toLowerCase());
-  
-  // Si la cuenta no existe en la billetera, la creamos con saldo 0 para no perder el rastro
-  if (!cuenta) {
-    cuenta = { id: 'c_' + Date.now(), nombre: nombreCuenta, saldo: 0, color: '#b45309' };
+  if(!cuenta) {
+    cuenta = { id: 'c_'+Date.now(), nombre: nombreCuenta, saldo: 0, color: '#7f8c8d' };
     window.AppState.finanzas.cuentas.push(cuenta);
   }
-
-  cuenta.saldo -= monto; // Restar el egreso
-
-  const nuevaTx = {
-    id: 'tx_' + Date.now(),
-    tipo: 'egreso',
-    monto,
-    desc: descripcion,
-    cuentaId: cuenta.id,
-    fecha: new Date().toISOString().split('T')[0]
-  };
-
-  window.AppState.finanzas.transacciones.push(nuevaTx);
-  
-  // Actualizar consumos de los presupuestos si coincide la palabra clave
-  actualizarPresupuestosInternos(descripcion, monto);
-  
-  guardarFinanzasEnStorage();
+  cuenta.saldo -= monto;
+  window.AppState.finanzas.transacciones.push({
+    id: 'tx_'+Date.now(), tipo: 'egreso', monto, desc, cuentaId: cuenta.id, categoria: categoria || '🧱 Materiales Obra', fecha: new Date().toISOString().split('T')[0]
+  });
+  localStorage.setItem('agenda_finanzas', JSON.stringify(window.AppState.finanzas));
   renderFinanzasCompleto();
 }
 
+function ejecutarGastoFinanzasReal() {
+  const idEdicion = document.getElementById('tx-id-edicion').value;
+  const tipo = document.getElementById('tx-tipo').value;
+  const monto = parseFloat(document.getElementById('tx-monto').value) || 0;
+  const desc = document.getElementById('tx-desc').value.trim();
+  const cuentaNombre = document.getElementById('tx-cuenta').value;
+  const categoria = document.getElementById('tx-categoria').value;
+
+  if(monto <= 0 || !desc || cuentaNombre === 'NUEVO') {
+    alert('Completa los campos contables requeridos.'); return;
+  }
+
+  // Si estamos editando, revertimos primero el dinero del saldo anterior
+  if (idEdicion) {
+    revertirImpactoMonetario(idEdicion);
+    window.AppState.finanzas.transacciones = window.AppState.finanzas.transacciones.filter(t => t.id !== idEdicion);
+  }
+
+  let cuenta = window.AppState.finanzas.cuentas.find(c => c.nombre === cuentaNombre);
+  if(tipo === 'ingreso') cuenta.saldo += monto; else cuenta.saldo -= monto;
+
+  window.AppState.finanzas.transacciones.push({
+    id: idEdicion || 'tx_'+Date.now(), tipo, monto, desc, cuentaId: cuenta.id, categoria, fecha: new Date().toISOString().split('T')[0]
+  });
+
+  localStorage.setItem('agenda_finanzas', JSON.stringify(window.AppState.finanzas));
+  document.getElementById('form-finanzas').reset(); // Reset absoluto anti-duplicados
+  closeModal('modal-nueva-tx');
+  renderFinanzasCompleto();
+  showToast('Operación de caja ejecutada correctamente.');
+}
+
+function revertirImpactoMonetario(id) {
+  const tx = window.AppState.finanzas.transacciones.find(t => t.id === id);
+  if(tx) {
+    const c = window.AppState.finanzas.cuentas.find(acc => acc.id === tx.cuentaId);
+    if(c) { if(tx.tipo === 'ingreso') c.saldo -= tx.monto; else c.saldo += tx.monto; }
+  }
+}
+
+function filtrarTransaccionesPorTipo(tipo) {
+  filtroTipoActual = tipo;
+  renderHistorialFinanzas();
+  showToast(`Filtrando historial por: ${tipo.toUpperCase()}`);
+}
+
 function renderFinanzasCompleto() {
+  // Calcular indicadores agregados
+  let ing = 0, egr = 0;
+  window.AppState.finanzas.transacciones.forEach(t => { if(t.tipo==='ingreso') ing+=t.monto; else egr+=t.monto; });
+  
+  document.getElementById('total-ingresos').textContent = '$' + ing.toLocaleString();
+  document.getElementById('total-egresos').textContent = '$' + egr.toLocaleString();
+  
+  let netoCuentas = 0;
+  window.AppState.finanzas.cuentas.forEach(c => netoCuentas += c.saldo);
+  document.getElementById('total-neto').textContent = '$' + netoCuentas.toLocaleString();
+
   renderTarjetasCuentas();
-  renderBarrasPresupuesto();
+  renderBarrasPresupuestoReales();
   renderHistorialFinanzas();
 }
 
-// ── RENDER DE CUENTAS (Bordes de Color Estilo V8) ──
 function renderTarjetasCuentas() {
   const container = document.getElementById('finanzas-cuentas');
-  if (!container) return;
-
+  if(!container) return;
   container.innerHTML = window.AppState.finanzas.cuentas.map(c => `
     <div class="cuenta-card" style="--cuenta-color: ${c.color}">
-      <div style="font-size: 12px; color: var(--text2); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
-        ${c.nombre}
-      </div>
-      <div class="cuenta-saldo">
-        $${c.saldo.toLocaleString()}
-      </div>
+      <div style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase;">${c.nombre}</div>
+      <div class="cuenta-saldo">$${c.saldo.toLocaleString()}</div>
     </div>
   `).join('');
 }
 
-// ── RENDER DE PRESUPUESTOS (Barras Progresivas Inteligentes) ──
-function renderBarrasPresupuesto() {
+function renderBarrasPresupuestoReales() {
   const container = document.getElementById('presupuestos-progress-container');
-  if (!container) return;
+  if(!container) return;
 
-  container.innerHTML = window.AppState.finanzas.presupuestos.map(b => {
-    const porcentaje = Math.min(100, Math.round((b.consumido / b.limite) * 100));
-    
-    // Cambiar color de la barra según gravedad del gasto
-    let colorFillClass = '';
-    if (porcentaje >= 100) colorFillClass = 'danger'; // Alerta Roja en CSS
-    else if (porcentaje >= 80) colorFillClass = 'warning'; // Alerta Naranja en CSS
+  // Presupuestos base calculados dinámicamente según gastos reales
+  const limites = { '🧱 Materiales Obra': 2000000, '💊 Logística Médica': 500000, '🍔 Sustento Diario': 800000 };
+  const consumos = { '🧱 Materiales Obra': 0, '💊 Logística Médica': 0, '🍔 Sustento Diario': 0 };
 
+  window.AppState.finanzas.transacciones.forEach(t => {
+    if(t.tipo === 'egreso' && consumos[t.categoria] !== undefined) consumos[t.categoria] += t.monto;
+  });
+
+  container.innerHTML = Object.keys(limites).map(cat => {
+    const pct = Math.min(100, Math.round((consumos[cat] / limites[cat]) * 100));
     return `
-      <div class="progress-wrap" style="margin-bottom: 15px;">
+      <div class="progress-wrap" style="margin-bottom:10px;">
         <div class="progress-labels">
-          <span style="font-weight:600;">${b.categoriaNombre}</span>
-          <span style="color:var(--text2); font-size:12px;">$${b.consumido.toLocaleString()} / $${b.limite.toLocaleString()} (${porcentaje}%)</span>
+          <span>${cat}</span>
+          <small>$${consumos[cat].toLocaleString()} / $${limites[cat].toLocaleString()} (${pct}%)</small>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill ${colorFillClass}" style="width: ${porcentaje}%"></div>
+        <div class="progress-bar"><div class="progress-fill ${pct>=90?'danger':pct>=75?'warning':''}" style="width:${pct}%"></div></div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderHistorialFinanzas() {
+  const container = document.getElementById('tx-history-container');
+  if(!container) return;
+
+  let filtradas = window.AppState.finanzas.transacciones;
+  if(filtroTipoActual !== 'todos') filtradas = filtradas.filter(t => t.tipo === filtroTipoActual);
+
+  const sorted = [...filtradas].sort((a,b) => b.id.localeCompare(a.id));
+
+  container.innerHTML = `<div style="font-weight:700; font-family:'Fraunces',serif; margin-bottom:10px;">Historial Contable (${filtroTipoActual.toUpperCase()})</div>` + 
+  sorted.map(t => {
+    const cObj = window.AppState.finanzas.cuentas.find(acc => acc.id === t.cuentaId);
+    return `
+      <div class="tx-row" style="align-items:center;">
+        <div style="font-size:16px;">${t.tipo==='ingreso'?'💰':'📉'}</div>
+        <div class="tx-info" style="flex:1;">
+          <div class="tx-desc" style="font-weight:600; font-size:13px;">${t.desc}</div>
+          <small style="color:var(--text3); font-size:11px;">${cObj?cObj.nombre:'Efectivo'} · ${t.categoria}</small>
+        </div>
+        <div class="tx-monto ${t.tipo}" style="font-weight:700; margin-right:8px;">${t.tipo==='ingreso'?'+':'-'}$${t.monto.toLocaleString()}</div>
+        <div style="display:flex; gap:4px;">
+          <button class="btn btn-ghost btn-sm" style="padding:2px 6px;" onclick="iniciarEdicionTx('${t.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" style="padding:2px 6px;" onclick="eliminarTxReal('${t.id}')">🗑️</button>
         </div>
       </div>
     `;
   }).join('');
 }
 
-// ── RENDER DEL HISTORIAL DE CAJA INTEGRAL ──
-function renderHistorialFinanzas() {
-  const container = document.getElementById('tx-history-container');
-  if (!container) return;
-
-  if (window.AppState.finanzas.transacciones.length === 0) {
-    container.innerHTML = `<div style="text-align:center; color:var(--text3); font-size:13px; padding:15px;">No hay registros de caja este mes.</div>`;
-    return;
-  }
-
-  // Agrupar por fechas e imprimir las filas elegantes estilo v8
-  const sortedTxs = [...window.AppState.finanzas.transacciones].sort((a,b) => b.id.localeCompare(a.id));
-
-  container.innerHTML = `
-    <div style="font-weight:700; font-family:'Fraunces',serif; font-size:16px; margin-bottom:10px;">Últimos Movimientos de Caja</div>
-    ` + sortedTxs.slice(0, 10).map(tx => {
-      const cName = window.AppState.finanzas.cuentas.find(c => c.id === tx.cuentaId)?.nombre || 'Efectivo';
-      const esIngreso = tx.tipo === 'ingreso';
-      return `
-        <div class="tx-row">
-          <div style="font-size:18px;">${esIngreso ? '💰' : '📉'}</div>
-          <div class="tx-info">
-            <div class="tx-desc">${tx.desc}</div>
-            <div style="font-size:11px; color:var(--text3)">Billetera: ${cName} | ${tx.fecha}</div>
-          </div>
-          <div class="tx-monto ${tx.tipo}">
-            ${esIngreso ? '+' : '-'}$${tx.monto.toLocaleString()}
-          </div>
-        </div>
-      `;
-    }).join('');
+function iniciarEdicionTx(id) {
+  const tx = window.AppState.finanzas.transacciones.find(t => t.id === id);
+  if(!tx) return;
+  abrirModalFinanzas();
+  document.getElementById('tx-id-edicion').value = tx.id;
+  document.getElementById('tx-tipo').value = tx.tipo;
+  document.getElementById('tx-monto').value = tx.monto;
+  document.getElementById('tx-desc').value = tx.desc;
+  document.getElementById('tx-categoria').value = tx.categoria;
+  
+  const cObj = window.AppState.finanzas.cuentas.find(acc => acc.id === tx.cuentaId);
+  if(cObj) document.getElementById('tx-cuenta').value = cObj.nombre;
+  
+  document.getElementById('btn-guardar-tx').textContent = '🔧 Guardar Modificación';
 }
 
-function actualizarPresupuestosInternos(desc, monto) {
-  if (desc.toLowerCase().includes('obra') || desc.toLowerCase().includes('material')) {
-    window.AppState.finanzas.presupuestos[0].consumido += monto;
-  } else if (desc.toLowerCase().includes('médica') || desc.toLowerCase().includes('cita') || desc.toLowerCase().includes('copago')) {
-    window.AppState.finanzas.presupuestos[1].consumido += monto;
-  }
-}
-
-// Vinculación segura de los botones del modal del index.html
-window.ejecutarGastoFinanzas = function() {
-  const tipo = document.getElementById('tx-tipo').value;
-  const monto = parseFloat(document.getElementById('tx-monto').value) || 0;
-  const desc = document.getElementById('tx-desc').value.trim();
-  const cNombre = document.getElementById('tx-cuenta').value || 'Efectivo';
-
-  if (monto <= 0 || !desc) { alert('Por favor llena los campos obligatorios.'); return; }
-
-  let cuenta = window.AppState.finanzas.cuentas.find(c => c.nombre.toLowerCase() === cNombre.toLowerCase());
-  if (!cuenta) {
-    cuenta = { id: 'c_' + Date.now(), nombre: cNombre, saldo: 0, color: '#1d3557' };
-    window.AppState.finanzas.cuentas.push(cuenta);
-  }
-
-  if (tipo === 'ingreso') cuenta.saldo += monto;
-  else {
-    cuenta.saldo -= monto;
-    actualizarPresupuestosInternos(desc, monto);
-  }
-
-  window.AppState.finanzas.transacciones.push({
-    id: 'tx_' + Date.now(),
-    tipo,
-    monto,
-    desc,
-    cuentaId: cuenta.id,
-    fecha: new Date().toISOString().split('T')[0]
-  });
-
-  guardarFinanzasEnStorage();
-  renderFinanzasCompleto();
-  closeModal('modal-nueva-tx');
-  if (typeof showToast === 'function') showToast('Movimiento financiero registrado.');
-};
-
-function guardarFinanzasEnStorage() {
+function eliminarTxReal(id) {
+  revertirImpactoMonetario(id);
+  window.AppState.finanzas.transacciones = window.AppState.finanzas.transacciones.filter(t => t.id !== id);
   localStorage.setItem('agenda_finanzas', JSON.stringify(window.AppState.finanzas));
+  renderFinanzasCompleto();
+  showToast('Transacción eliminada y caja balanceada.');
 }
-
-window.registrarGastoDesdeModulo = registrarGastoDesdeModulo;
