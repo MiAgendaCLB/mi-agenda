@@ -2,75 +2,63 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Agenda Unificada V9</title>
+    <title>Agenda Personal V8</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
     <header>
-        <nav>
-            <button onclick="switchSection('home')">Inicio</button>
-            <button onclick="switchSection('citas')">Citas</button>
-            <button onclick="switchSection('documentos')">Trámites</button>
-        </nav>
+        <div class="header-inner">
+            <div class="logo"><div class="logo-dot"></div> Mi Agenda</div>
+        </div>
     </header>
 
     <main id="app">
-        <section id="sec-home">
-            <div class="kpi-container">
-                <div class="kpi-box">Por Tomar: <span id="stat-citas-por-tomar">0</span></div>
-                <div class="kpi-box">PQRS: <span id="stat-tramites-activos">0</span></div>
-                <div class="kpi-box">Judicial: <span id="stat-judicial-activos">0</span></div>
+        <section id="sec-home" class="section active">
+            <div class="page-header">
+                <h1 class="page-title">Agenda Semanal</h1>
+                <button class="btn btn-primary" onclick="toggleSelectorEntrada()">➕ Nuevo Registro</button>
             </div>
 
-            <button class="btn-primary" onclick="toggleSelectorEntrada()">➕ Nuevo Registro</button>
+            <div class="kpi-container" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <div class="card" style="flex:1">Por Tomar: <span id="stat-citas-por-tomar">0</span></div>
+                <div class="card" style="flex:1">PQRS: <span id="stat-tramites-activos">0</span></div>
+                <div class="card" style="flex:1">Judicial: <span id="stat-judicial-activos">0</span></div>
+            </div>
 
             <div class="agenda-header">
-                <button onclick="navegarSemana(-1)">◀ Anterior</button>
+                <button class="btn btn-outline" onclick="navegarSemana(-1)">◀ Anterior</button>
                 <span id="weekly-range-label"></span>
-                <button onclick="navegarSemana(1)">Siguiente ▶</button>
+                <button class="btn btn-outline" onclick="navegarSemana(1)">Siguiente ▶</button>
             </div>
-            <div id="home-weekly-agenda"></div>
+
+            <div id="home-weekly-agenda" style="margin-top:20px;"></div>
         </section>
     </main>
 
-    <div id="selector-entrada" class="popup-modal" style="display:none;">
-        <div class="popup-content">
-            <h3>¿Qué deseas registrar?</h3>
-            <button onclick="abrirModal('medico')">🏥 Acto Médico</button>
-            <button onclick="abrirModal('pqrs')">📄 Trámite PQRS</button>
-            <button onclick="abrirModal('judicial')">⚖️ Trámite Judicial</button>
-            <button onclick="toggleSelectorEntrada()">Cerrar</button>
+    <div id="selector-entrada" class="overlay">
+        <div class="modal">
+            <h3 class="modal-title">¿Qué deseas registrar?</h3>
+            <div class="form-group"><button class="btn btn-blue" style="width:100%" onclick="abrirModal('medico')">🏥 Acto Médico</button></div>
+            <div class="form-group"><button class="btn btn-blue" style="width:100%" onclick="abrirModal('pqrs')">📄 Trámite PQRS</button></div>
+            <div class="form-group"><button class="btn btn-blue" style="width:100%" onclick="abrirModal('judicial')">⚖️ Trámite Judicial</button></div>
+            <button class="btn btn-ghost" onclick="toggleSelectorEntrada()">Cerrar</button>
         </div>
     </div>
 
-    <div id="modal-medico" class="popup-modal" style="display:none;">
-        <div class="popup-content">
-            <h3>Nueva Cita Médica</h3>
-            <input type="text" id="med-paciente" placeholder="Paciente" required>
-            <input type="date" id="med-fecha" required>
-            <select id="med-hora-hh"></select>
-            <select id="med-hora-mm"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
-            <input type="text" id="med-institucion" placeholder="Institución" required>
-            <button onclick="guardarRegistro('medico')">Guardar</button>
-            <button onclick="cerrarModal('medico')">Cancelar</button>
-        </div>
-    </div>
-    
-    <div id="modal-pqrs" class="popup-modal" style="display:none;">
-        <div class="popup-content">
-            <h3>Trámite PQRS</h3>
-            <input type="text" id="pqrs-paciente" placeholder="Paciente">
-            <button onclick="guardarRegistro('pqrs')">Guardar</button>
-            <button onclick="cerrarModal('pqrs')">Cancelar</button>
-        </div>
-    </div>
-
-    <div id="modal-judicial" class="popup-modal" style="display:none;">
-        <div class="popup-content">
-            <h3>Trámite Judicial</h3>
-            <input type="text" id="jud-paciente" placeholder="Paciente">
-            <button onclick="guardarRegistro('judicial')">Guardar</button>
-            <button onclick="cerrarModal('judicial')">Cancelar</button>
+    <div id="modal-medico" class="overlay">
+        <div class="modal">
+            <h3 class="modal-title">Nueva Cita Médica</h3>
+            <div class="form-group"><label>Paciente</label><input type="text" id="med-paciente"></div>
+            <div class="form-row">
+                <div class="form-group"><label>Hora</label><select id="med-hora-hh"></select></div>
+                <div class="form-group"><label>Minutos</label><select id="med-hora-mm"><option>00</option><option>15</option><option>30</option><option>45</option></select></div>
+            </div>
+            <div class="form-group"><label>Institución</label><input type="text" id="med-institucion"></div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="guardarRegistro('medico')">Guardar</button>
+                <button class="btn btn-outline" onclick="cerrarModal('medico')">Cancelar</button>
+            </div>
         </div>
     </div>
 
