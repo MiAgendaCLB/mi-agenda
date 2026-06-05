@@ -1,330 +1,81 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi Agenda Personal</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <style>
-    /* ── TOKENS & ESTILOS BASE ── */
-    :root {
-      --accent:#2d6a4f; --accent-hover:#1b4332; --accent-light:#d8f3dc; --accent-xlight:#eef8f1;
-      --bg:#f4f0eb; --surface:#fff; --surface2:#fdf8f3;
-      --text:#1c1e21; --text2:#65676b; --text3:#9e9e9e;
-      --border:#e4e6eb; --border2:#d0d0d0;
-      --red:#c44536; --red-light:#fff0ef;
-      --blue:#1d3557; --blue-light:#e8f0fe;
-      --amber:#b45309; --amber-light:#fff8e1;
-      --shadow:0 1px 3px rgba(0,0,0,.08),0 2px 12px rgba(0,0,0,.04);
-    }
-    [data-theme="dark"] {
-      --bg:#121212; --surface:#1e1e1e; --surface2:#252525;
-      --text:#e3e3e3; --text2:#b0b0b0; --text3:#666;
-      --border:#2d2d2d; --border2:#3d3d3d;
-      --accent-xlight:#1b2e24; --blue-light:#132237;
-    }
-    * { box-sizing:border-box; margin:0; padding:0; font-family:'DM Sans',sans-serif; }
-    body { background:var(--bg); color:var(--text); padding-bottom:60px; transition:background .3s, color .3s; }
-    
-    header { background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; height:56px; }
-    .header-inner { max-width:1100px; margin:0 auto; padding:0 16px; height:100%; display:flex; align-items:center; justify-content:space-between; }
-    .logo { font-family:'Fraunces',serif; font-size:18px; font-weight:700; color:var(--accent); cursor:pointer; display:flex; align-items:center; gap:4px; }
-    .logo-dot { width:6px; height:6px; background:var(--red); border-radius:50%; }
-    
-    /* Menú de Navegación */
-    nav { display:flex; gap:16px; }
-    nav span { font-size:14px; font-weight:500; color:var(--text2); cursor:pointer; padding:6px 10px; border-radius:6px; transition: all 0.2s; }
-    nav span:hover { background:var(--bg); color:var(--text); }
-    nav span.nav-active { background:var(--accent-light); color:var(--accent); font-weight:600; }
-
-    main { max-width:1100px; margin:20px auto; padding:0 16px; }
-    .section { display:none; }
-    .section.active { display:block; }
-    
-    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-    .page-title { font-family:'Fraunces',serif; font-size:24px; font-weight:700; color:var(--text); }
-    
-    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:var(--shadow); margin-bottom:16px; }
-    
-    /* Grid de Totales / KPIs */
-    .kpi-grid-hoy { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; margin-bottom:20px; }
-    @media(max-width:768px){ .kpi-grid-hoy { grid-template-columns:repeat(2, 1fr); } .kpi-grid-hoy :nth-child(5) { grid-column: span 2; } }
-    
-    .kpi-card { text-align:center; padding:12px 8px; transition:all .2s ease; border-radius:10px; border:1px solid var(--border); background:var(--surface); }
-    .kpi-card:hover { transform:translateY(-2px); box-shadow:0 4px 8px rgba(0,0,0,0.06); }
-    .kpi-val { font-size:20px; font-weight:700; line-height:1.2; }
-    .kpi-lbl { font-size:11px; color:var(--text2); margin-top:4px; font-weight:500; text-transform:uppercase; letter-spacing:0.3px; }
-    
-    /* Form y Selectores Estilizados */
-    .form-group { margin-bottom:12px; }
-    .form-group label { display:block; font-size:12px; font-weight:600; color:var(--text2); margin-bottom:4px; }
-    select, input[type="text"], input[type="date"], input[type="number"] {
-      width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-size:14px; outline:none;
-    }
-    select option { font-size:14px; padding:5px; }
-
-    /* Botones */
-    .btn { padding:9px 16px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; border:none; display:inline-flex; align-items:center; gap:6px; }
-    .btn-primary { background:var(--accent); color:#fff; }
-    .btn-primary:hover { background:var(--accent-hover); }
-    .btn-outline { background:transparent; border:1px solid var(--border2); color:var(--text); }
-    .btn-danger { background:var(--red); color:#fff; }
-    .btn-sm { padding:6px 10px; font-size:12px; border-radius:6px; }
-    
-    /* Modales */
-    .overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:200; padding:16px; }
-    .overlay.open { display:flex; }
-    .modal { background:var(--surface); border-radius:14px; padding:20px; width:100%; max-width:460px; box-shadow:0 4px 24px rgba(0,0,0,.15); position:relative; }
-    
-    /* Toast */
-    .toast { position:relative; background:var(--blue); color:#fff; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:500; box-shadow:0 4px 12px rgba(0,0,0,.15); animation:slideUp .3s ease; }
-    @keyframes slideUp { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Unificada</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- ══ ENCABEZADO CON MENÚ DE NAVEGACIÓN COMPLETO ══ -->
-  <header>
-    <div class="header-inner">
-      <div class="logo" onclick="switchSection('home')">
-        Agenda <div class="logo-dot"></div>
-      </div>
-      
-      <!-- Menú que faltaba -->
-      <nav>
-        <span id="nav-home" class="nav-active" onclick="switchSection('home')">🏠 Hoy</span>
-        <span id="nav-citas" onclick="switchSection('citas')">📅 Citas</span>
-        <span id="nav-documentos" onclick="switchSection('documentos')">📄 Trámites</span>
-        <span id="nav-finanzas" onclick="switchSection('finanzas')">💰 Finanzas</span>
-      </nav>
+    <header>
+        <nav>
+            <button onclick="switchSection('home')">Inicio</button>
+            <button onclick="switchSection('citas')">Citas</button>
+            <button onclick="switchSection('documentos')">Trámites</button>
+        </nav>
+    </header>
 
-      <div style="display:flex; align-items:center; gap:12px;">
-        <span id="header-date" style="font-size:13px; color:var(--text2); font-weight:500; display:none; display:inline;">...</span>
-        <button class="btn btn-outline btn-sm" onclick="toggleTheme()" style="padding:6px;">🌓</button>
-      </div>
-    </div>
-  </header>
-
-  <!-- ══ CONTENEDOR DE PANTALLAS ══ -->
-  <main>
-    
-    <!-- 🏠 1. PANTALLA: INICIO / HOY -->
-    <section id="sec-home" class="section active">
-      <div class="page-header">
-        <h1 class="page-title" id="home-greeting">Hola, Paco 🌟</h1>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalCita()">＋ Nueva Cita</button>
-      </div>
-      
-      <div id="home-proactive-banner"></div>
-
-      <div class="kpi-grid-hoy">
-        <div class="kpi-card" id="kpi-box-por-tomar">
-          <div class="kpi-val" id="stat-citas-por-tomar" style="color:var(--accent);">0</div>
-          <div class="kpi-lbl">Citas por tomar</div>
-        </div>
-        <div class="kpi-card" id="kpi-box-tramites">
-          <div class="kpi-val" id="stat-tramites-activos" style="color:var(--blue);">0</div>
-          <div class="kpi-lbl">Trámites activos</div>
-        </div>
-        <div class="kpi-card" id="kpi-box-saldo">
-          <div class="kpi-val" id="stat-saldo-cuentas" style="color:var(--amber); font-size:17px;">$0</div>
-          <div class="kpi-lbl">Saldo cuentas</div>
-        </div>
-        <div class="kpi-card" id="kpi-box-hoy">
-          <div class="kpi-val" id="stat-citas-hoy" style="color:#0055ff;">0</div>
-          <div class="kpi-lbl">Citas hoy</div>
-        </div>
-        <div class="kpi-card" id="kpi-box-egresos">
-          <div class="kpi-val" id="stat-egresos-mes" style="color:var(--red); font-size:17px;">$0</div>
-          <div class="kpi-lbl">Egresos mes</div>
-        </div>
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--border); padding:10px 14px; border-radius:10px; margin-bottom:16px;">
-        <button class="btn btn-outline btn-sm" onclick="navegarSemana(-1)">◀ Anterior</button>
-        <span id="weekly-range-label" style="font-size:13.5px; font-weight:600; color:var(--text); display:flex; align-items:center;">Cargando rango...</span>
-        <button class="btn btn-outline btn-sm" onclick="navegarSemana(1)">Siguiente ▶</button>
-      </div>
-
-      <div id="home-weekly-agenda" style="display:flex; flex-direction:column; gap:8px;"></div>
-    </section>
-
-    <!-- 📅 2. PANTALLA: HISTORIAL / MAESTRO DE CITAS -->
-    <section id="sec-citas" class="section">
-      <div class="page-header">
-        <h1 class="page-title">Historial General de Citas</h1>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalCita()">＋ Nueva Cita</button>
-      </div>
-      <div id="citas-list" style="display:flex; flex-direction:column; gap:10px;"></div>
-    </section>
-
-    <!-- 📄 3. PANTALLA: TRÁMITES Y DOCUMENTOS (Donde apunta el banner de Supersalud) -->
-    <section id="sec-documentos" class="section">
-      <div class="page-header">
-        <h1 class="page-title">Módulo de Trámites y Requerimientos</h1>
-      </div>
-      <div class="card">
-        <h3 style="margin-bottom:10px; font-family:'Fraunces', serif;">Gestión de Casos Activos</h3>
-        <p style="font-size:14px; color:var(--text2); line-height:1.5;">
-          Aquí se centralizan las interacciones institucionales como <b>Supersalud</b>, tutelas y derechos de petición.
-        </p>
-        <div style="background:var(--surface2); border:1px solid var(--border); padding:12px; border-radius:8px; margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <strong>Reclamación Supersalud #1</strong>
-            <div style="font-size:12px; color:var(--red); font-weight:500; margin-top:2px;">⚠️ Estado: Pendiente hace 30 días</div>
-          </div>
-          <button class="btn btn-outline btn-sm" onclick="showToast('Historial de trazabilidad abierto')">Ver Bitácora</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 💰 4. PANTALLA: FINANZAS Y EGRESOS -->
-    <section id="sec-finanzas" class="section">
-      <div class="page-header">
-        <h1 class="page-title">Panel Financiero</h1>
-      </div>
-      <div class="card">
-        <h3 style="margin-bottom:10px; font-family:'Fraunces', serif;">Resumen Contable</h3>
-        <p style="font-size:14px; color:var(--text2);">Monitoreo automático de copagos médicos, transportes y balances de cuentas vinculadas.</p>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- ══ POPUP: CREACIÓN Y EDICIÓN DE CITAS ══ -->
-  <div class="overlay" id="modal-nueva-cita">
-    <div class="modal">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 id="cita-modal-title" style="font-family:'Fraunces',serif; font-size:18px;">Agendar Nueva Cita</h3>
-        <button class="btn btn-outline btn-sm" onclick="closeModal('modal-nueva-cita')" style="padding:4px 8px;">✕</button>
-      </div>
-      <form id="form-cita" onsubmit="event.preventDefault();">
-        <input type="hidden" id="cita-id-edicion" value="">
-        
-        <div class="form-group">
-          <label>Paciente / Titular</label>
-          <select id="cita-persona">
-            <option value="Paco">🔵 Paco</option>
-            <option value="Padre">🟢 Padre</option>
-            <option value="Esposa">🟡 Esposa</option>
-          </select>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Especialidad</label>
-            <select id="cita-especialidad" onchange="verificarNuevoDatoMedico(this, 'especialidad')"></select>
-          </div>
-          <div class="form-group">
-            <label>IPS / Institución</label>
-            <select id="cita-institucion" onchange="verificarNuevoDatoMedico(this, 'institucion')"></select>
-          </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Fecha</label>
-            <input type="date" id="cita-fecha" required>
-          </div>
-          <div class="form-group">
-            <label>Hora</label>
-            <div style="display:flex; gap:2px;">
-              <select id="cita-hora-hh" style="padding:8px 4px; font-size:12px;"></select>
-              <select id="cita-hora-mm" style="padding:8px 4px; font-size:12px;"></select>
-              <select id="cita-hora-ampm" style="padding:8px 4px; font-size:12px;">
-                <option value="AM">AM</option>
-                <option value="PM">PM</option>
-              </select>
+    <main>
+        <section id="sec-home" class="active">
+            <div class="kpi-container">
+                <div class="kpi-box" id="kpi-box-por-tomar">Por Tomar: <span id="stat-citas-por-tomar">0</span></div>
+                <div class="kpi-box" id="kpi-box-tramites">PQRS: <span id="stat-tramites-activos">0</span></div>
+                <div class="kpi-box" id="kpi-box-hoy">Citas Hoy: <span id="stat-citas-hoy">0</span></div>
             </div>
-          </div>
-        </div>
 
-        <div class="form-group">
-          <label>Dirección / Lugar</label>
-          <input type="text" id="cita-lugar" placeholder="Consultorio, piso...">
-        </div>
+            <button class="btn-primary" onclick="toggleSelectorEntrada()">➕ Nuevo Registro</button>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Valor Copago ($)</label>
-            <input type="number" id="cita-copago" value="0">
-          </div>
-          <div class="form-group">
-            <label>Transporte ($)</label>
-            <input type="number" id="cita-transporte" value="0">
-          </div>
-        </div>
+            <div class="agenda-header">
+                <button onclick="navegarSemana(-1)">◀ Anterior</button>
+                <span id="weekly-range-label"></span>
+                <button onclick="navegarSemana(1)">Siguiente ▶</button>
+            </div>
+            <div id="home-weekly-agenda"></div>
+        </section>
+    </main>
 
-        <div style="display:flex; gap:8px; margin-top:18px;">
-          <button type="button" class="btn btn-danger" id="btn-eliminar-cita-modal" style="flex:1; display:none;" onclick="ejecutarEliminacionDesdeModal()">Eliminar Cita</button>
-          <button type="button" class="btn btn-primary" id="btn-guardar-cita-modal" style="flex:2; justify-content:center;" onclick="ejecutarCrearCitaReal()">Confirmar Operación</button>
+    <div id="selector-entrada" class="popup-modal" style="display:none;">
+        <div class="popup-content">
+            <h3>¿Qué deseas registrar hoy?</h3>
+            <button onclick="abrirModal('medico')">🏥 Acto Médico</button>
+            <button onclick="abrirModal('pqrs')">📄 Trámite PQRS</button>
+            <button onclick="abrirModal('judicial')">⚖️ Trámite Judicial</button>
+            <button onclick="toggleSelectorEntrada()">Cerrar</button>
         </div>
-      </form>
     </div>
-  </div>
 
-  <!-- ══ POPUP AUXILIAR: MAESTROS COMPACTOS ══ -->
-  <div id="popup-auxiliar" class="overlay">
-    <div class="modal" style="max-width:320px; padding:16px;">
-      <h3 id="aux-titulo" style="font-family:'Fraunces',serif; font-size:16px; margin-bottom:12px;">Agregar Elemento</h3>
-      <input type="text" id="aux-input" placeholder="Nombre..." style="margin-bottom:14px; padding:8px 12px; font-size:13px;">
-      <div style="display:flex; gap:6px; justify-content:flex-end;">
-        <button class="btn btn-outline btn-sm" onclick="closeModal('popup-auxiliar')">Cancelar</button>
-        <button class="btn btn-primary btn-sm" id="aux-btn-confirmar">Añadir</button>
-      </div>
+    <div id="modal-medico" class="popup-modal" style="display:none;">
+        <div class="popup-content">
+            <h3>Nueva Cita Médica</h3>
+            <input type="text" id="med-paciente" placeholder="Paciente" required>
+            <input type="date" id="med-fecha" required>
+            <select id="med-hora-hh"></select>
+            <select id="med-hora-mm">
+                <option value="00">00</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+            </select>
+            <input type="text" id="med-institucion" placeholder="Institución" required>
+            <button onclick="guardarRegistroMedico()">Guardar</button>
+        </div>
     </div>
-  </div>
 
-  <div id="toast-container" style="position:fixed; bottom:20px; right:20px; z-index:1000; display:flex; flex-direction:column; gap:6px;"></div>
+    <div id="modal-pqrs" class="popup-modal" style="display:none;">
+        <div class="popup-content">
+            <h3>Radicar PQRS</h3>
+            <button onclick="cerrarModal('pqrs')">Cerrar</button>
+        </div>
+    </div>
 
-  <!-- LÓGICA DE CONTROL GLOBAL DE PANTALLAS -->
-  <script>
-    window.AppState = { 
-      theme: localStorage.getItem('theme') || 'light',
-      currentSection: 'home',
-      fechaBaseSemana: new Date(),
-      filtroHome: 'todos'
-    };
-    
-    document.documentElement.setAttribute('data-theme', AppState.theme);
-    document.getElementById('header-date').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+    <div id="modal-judicial" class="popup-modal" style="display:none;">
+        <div class="popup-content">
+            <h3>Trámite Judicial</h3>
+            <button onclick="cerrarModal('judicial')">Cerrar</button>
+        </div>
+    </div>
 
-    function switchSection(id) {
-      // Ocultar todas las secciones HTML
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      // Desactivar todos los estilos de las pestañas del menú
-      document.querySelectorAll('nav span').forEach(n => n.classList.remove('nav-active'));
-      
-      const targetSection = document.getElementById('sec-' + id);
-      const targetNav = document.getElementById('nav-' + id);
-      
-      if(targetSection) targetSection.classList.add('active');
-      if(targetNav) targetNav.classList.add('nav-active');
-      
-      // Si regresa a "Hoy", refrescar la vista semanal
-      if(id === 'home' && typeof renderPantallaHoyCompleta === 'function') {
-        renderPantallaHoyCompleta();
-      }
-    }
-
-    function openModal(id) { document.getElementById(id).classList.add('open'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-    document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.overlay').forEach(m => m.classList.remove('open')); });
-    
-    function showToast(msg) {
-      const container = document.getElementById('toast-container');
-      const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
-      container.appendChild(t); setTimeout(() => t.remove(), 2500);
-    }
-
-    function toggleTheme() {
-      AppState.theme = AppState.theme === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', AppState.theme);
-      localStorage.setItem('theme', AppState.theme);
-    }
-  </script>
-
-  <script src="modulo-citas.js"></script>
+    <script src="modulo-citas.js"></script>
 </body>
 </html>
