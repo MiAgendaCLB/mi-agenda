@@ -2,12 +2,10 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda Unificada</title>
+    <title>Agenda Unificada V9</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <header>
         <nav>
             <button onclick="switchSection('home')">Inicio</button>
@@ -16,12 +14,12 @@
         </nav>
     </header>
 
-    <main>
-        <section id="sec-home" class="active">
+    <main id="app">
+        <section id="sec-home">
             <div class="kpi-container">
-                <div class="kpi-box" id="kpi-box-por-tomar">Por Tomar: <span id="stat-citas-por-tomar">0</span></div>
-                <div class="kpi-box" id="kpi-box-tramites">PQRS: <span id="stat-tramites-activos">0</span></div>
-                <div class="kpi-box" id="kpi-box-hoy">Citas Hoy: <span id="stat-citas-hoy">0</span></div>
+                <div class="kpi-box">Por Tomar: <span id="stat-citas-por-tomar">0</span></div>
+                <div class="kpi-box">PQRS: <span id="stat-tramites-activos">0</span></div>
+                <div class="kpi-box">Judicial: <span id="stat-judicial-activos">0</span></div>
             </div>
 
             <button class="btn-primary" onclick="toggleSelectorEntrada()">➕ Nuevo Registro</button>
@@ -37,7 +35,7 @@
 
     <div id="selector-entrada" class="popup-modal" style="display:none;">
         <div class="popup-content">
-            <h3>¿Qué deseas registrar hoy?</h3>
+            <h3>¿Qué deseas registrar?</h3>
             <button onclick="abrirModal('medico')">🏥 Acto Médico</button>
             <button onclick="abrirModal('pqrs')">📄 Trámite PQRS</button>
             <button onclick="abrirModal('judicial')">⚖️ Trámite Judicial</button>
@@ -51,28 +49,28 @@
             <input type="text" id="med-paciente" placeholder="Paciente" required>
             <input type="date" id="med-fecha" required>
             <select id="med-hora-hh"></select>
-            <select id="med-hora-mm">
-                <option value="00">00</option>
-                <option value="15">15</option>
-                <option value="30">30</option>
-                <option value="45">45</option>
-            </select>
+            <select id="med-hora-mm"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
             <input type="text" id="med-institucion" placeholder="Institución" required>
-            <button onclick="guardarRegistroMedico()">Guardar</button>
+            <button onclick="guardarRegistro('medico')">Guardar</button>
+            <button onclick="cerrarModal('medico')">Cancelar</button>
         </div>
     </div>
-
+    
     <div id="modal-pqrs" class="popup-modal" style="display:none;">
         <div class="popup-content">
-            <h3>Radicar PQRS</h3>
-            <button onclick="cerrarModal('pqrs')">Cerrar</button>
+            <h3>Trámite PQRS</h3>
+            <input type="text" id="pqrs-paciente" placeholder="Paciente">
+            <button onclick="guardarRegistro('pqrs')">Guardar</button>
+            <button onclick="cerrarModal('pqrs')">Cancelar</button>
         </div>
     </div>
 
     <div id="modal-judicial" class="popup-modal" style="display:none;">
         <div class="popup-content">
             <h3>Trámite Judicial</h3>
-            <button onclick="cerrarModal('judicial')">Cerrar</button>
+            <input type="text" id="jud-paciente" placeholder="Paciente">
+            <button onclick="guardarRegistro('judicial')">Guardar</button>
+            <button onclick="cerrarModal('judicial')">Cancelar</button>
         </div>
     </div>
 
