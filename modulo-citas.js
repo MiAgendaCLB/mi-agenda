@@ -1,9 +1,5 @@
-/**
- * Módulo de Citas y Gestión de Expedientes (V9)
- * Gestión: Médica, PQRS y Judicial.
- */
+window.AgendaData = { citas: [] };
 
-// 1. Lógica de Navegación de Modales
 function toggleSelectorEntrada() {
     const el = document.getElementById('selector-entrada');
     el.style.display = (el.style.display === 'block') ? 'none' : 'block';
@@ -18,53 +14,38 @@ function cerrarModal(tipo) {
     document.getElementById(`modal-${tipo}`).style.display = 'none';
 }
 
-// 2. Lógica del Formulario Médico (con validación de trazabilidad)
-function guardarRegistroMedico() {
-    const paciente = document.getElementById('med-paciente').value;
-    const fecha = document.getElementById('med-fecha').value;
-    const hh = document.getElementById('med-hora-hh').value;
-    const mm = document.getElementById('med-hora-mm').value;
-    const institucion = document.getElementById('med-institucion').value;
-
-    // Validación estricta
-    if (!paciente || !fecha || !hh || !mm || !institucion) {
-        alert("Error: Paciente, Fecha, Hora e Institución son obligatorios.");
-        return;
-    }
-
-    const nuevaCita = {
+function guardarRegistro(tipo) {
+    const data = {
         id: Date.now(),
-        paciente: paciente,
-        tipo: 'medica',
-        subtipo: 'HC', // Por defecto; puedes hacerlo dinámico en el HTML
+        tipo: tipo,
+        paciente: document.getElementById(`${tipo === 'medico' ? 'med' : tipo === 'pqrs' ? 'pqrs' : 'jud'}-paciente`).value,
+        fecha: new Date().toISOString().split('T')[0],
         estado: 'por-tomar',
-        fecha: fecha,
-        hora: `${hh}:${mm}`,
-        institucion: institucion,
-        pasoActual: 'Orden Médica',
-        historialRadicados: [{ paso: 'Orden Médica', fecha: new Date().toISOString() }]
+        historialRadicados: []
     };
 
-    window.AgendaData.citas.push(nuevaCita);
-    cerrarModal('medico');
-    actualizarVista(); // Función maestra que renderiza la agenda
-}
-
-// 3. Funciones de Apoyo
-function actualizarVista() {
-    // Aquí invocas el renderizado semanal
-    renderPantallaHoyCompleta(); 
+    if(!data.paciente) return alert("Paciente obligatorio");
+    
+    window.AgendaData.citas.push(data);
+    cerrarModal(tipo);
+    renderPantallaHoyCompleta();
     actualizarTotalesKPI();
 }
 
-// 4. Inicialización de Selectores de Hora (Intervalos 15 min)
-function inicializarSelectoresHora() {
-    const selectHH = document.getElementById('med-hora-hh');
-    for (let i = 0; i < 24; i++) {
-        let h = i.toString().padStart(2, '0');
-        selectHH.innerHTML += `<option value="${h}">${h}</option>`;
-    }
+function renderPantallaHoyCompleta() {
+    const container = document.getElementById('home-weekly-agenda');
+    container.innerHTML = window.AgendaData.citas.map(c => `<div>${c.paciente} - ${c.tipo}</div>`).join('');
 }
 
-// Ejecutar al cargar
-document.addEventListener('DOMContentLoaded', inicializarSelectoresHora);
+function actualizarTotalesKPI() {
+    document.getElementById('stat-citas-por-tomar').innerText = window.AgendaData.citas.filter(c => c.tipo === 'medico').length;
+    document.getElementById('stat-tramites-activos').innerText = window.AgendaData.citas.filter(c => c.tipo === 'pqrs').length;
+    document.getElementById('stat-judicial-activos').innerText = window.AgendaData.citas.filter(c => c.tipo === 'judicial').length;
+}
+
+window.onload = () => {
+    // Inicializar selectores de hora
+    const selectHH = document.getElementById('med-hora-hh');
+    for(let i=0; i<24; i++) selectHH.innerHTML += `<option value="${i}">${i}</option>`;
+    actualizarTotalesKPI();
+};
